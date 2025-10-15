@@ -1,2 +1,7 @@
 # Ignore Python cache
+__pycache__/
+venv/
 *.pyc
+.ipynb_checkpoints/
+*.log
+.vscode/

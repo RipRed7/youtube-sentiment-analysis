@@ -1,5 +1,8 @@
 from googleapiclient.discovery import build
 
+class APIError(Exception):
+    pass
+
 class APIHandler:
     # Initialize the YouTube service
     def __init__(self, API_KEY, VIDEO_ID) -> None:
@@ -14,7 +17,11 @@ class APIHandler:
         maxResults = 50, # max comments
         textFormat = "plainText"   
 )
-        response = request.execute()
+        try:
+            response = request.execute()
+        except Exception as e:
+            raise APIError(f"Failed to fetch comments: {e}")
+
         
         comments = {} 
         
