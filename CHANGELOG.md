@@ -33,3 +33,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+
+## [v0.1.1] - 2025-10-19
+### Added
+- models.py
+  - SentimentLabel class that contains postive, negative, or neural enums labels.
+  - Sentiment data class containing label and confidence variables. 3 addition methods (is_positive, is_neutral, and is_confident) to determine the label and confidence of the analysis.
+  - Comment data class containing id, author, text, and sentiment variables. Also the analyze_sentiment method which will be moved to a different layer in the future. This method analyses a comment.
+  -  Video data class containing id and comemnts variables. An add_comment and get_sentiment_distribution method that adds a comment to the list of comments associated with said video. The get_sentiment_distribution method will also be moved to a different layer in the future. 
+
+### Notes
+- Next goal: Contuine to refactor into a Layered Architecture - Data / Service / App separation. Also move business logic methods out of the data layer.
