@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
   - Comment data class containing id, author, text, and sentiment variables. Also the analyze_sentiment method which will be moved to a different layer in the future. This method analyses a comment.
   -  Video data class containing id and comemnts variables. An add_comment and get_sentiment_distribution method that adds a comment to the list of comments associated with said video. The get_sentiment_distribution method will also be moved to a different layer in the future. 
 
-main.py
+- main.py
   - removed tensorflow warnings from appearing in the terminal.
 
 ### Notes
