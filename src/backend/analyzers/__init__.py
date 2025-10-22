@@ -1,0 +1,2 @@
+from src.backend.analyzers.Isentiment_analyzer import ISentimentAnalyzer
+from src.backend.analyzers.bert_sentiment_analyzer import BertSentimentAnalyzer

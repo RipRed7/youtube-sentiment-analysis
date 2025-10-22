@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 class SentimentLabel (Enum):
-    POSTIVE = "POSTIVE"
+    POSTIVE = "POSITIVE"
     NEGATIVE = "NEGATIVE"
     NEUTRAL = "NEUTRAL"
 
@@ -23,7 +23,8 @@ class Sentiment:
         return self.confidence >= threshold
 
 @dataclass
-class Comment: #entity
+class Comment:#entity
+    videoId: str
     id: int
     author: str
     text: str
@@ -41,11 +42,3 @@ class Video: #aggregate root
     
     def add_comment(self, comment: Comment) -> None:
         self.comments.append(comment)
-
-    def get_sentiment_distribution(self) -> dict[SentimentLabel, int]:
-        """Business logic, needs to be moved to service layer later"""
-        distribution = {label:0 for label in SentimentLabel}
-        for comment in self.comments:
-            if comment.sentiment:
-                distribution[comment.sentiment.label] += 1
-        return distribution
