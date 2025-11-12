@@ -2,6 +2,7 @@ import json
 import logging
 import logging.config
 import pathlib
+import os
 from typing import Optional
 
 
@@ -27,6 +28,7 @@ class AppLogger:
         try:
             with open(config_file) as f_in:
                 config = json.load(f_in)
+                os.makedirs("logs", exist_ok=True)
             logging.config.dictConfig(config)
         except FileNotFoundError:
             logging.basicConfig(level=logging.INFO)
