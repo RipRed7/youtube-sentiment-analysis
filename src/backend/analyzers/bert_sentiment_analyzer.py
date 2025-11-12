@@ -16,7 +16,6 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
         self.logger = BertSentimentAnalyzer._logger
 
         if BertSentimentAnalyzer._pipeline is None: # check if pipeline exists, if created already, reuse instead of reloading
-            print("Loading BERT model... may take a few seconds... :D")
             BertSentimentAnalyzer._pipeline = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english') #load model
         else:
             self.logger.debug("Reusing existing BERT model pipeline")
