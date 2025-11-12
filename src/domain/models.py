@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 class SentimentLabel (Enum):
-    POSTIVE = "POSITIVE"
+    POSITIVE = "POSITIVE"
     NEGATIVE = "NEGATIVE"
     NEUTRAL = "NEUTRAL"
 
@@ -14,7 +14,7 @@ class Sentiment:
     Confidence: float
 
     def is_positive(self) -> bool:
-        return self.label == SentimentLabel.POSTIVE
+        return self.label == SentimentLabel.POSITIVE
     
     def is_neutral(self) -> bool:
         return self.label == SentimentLabel.NEUTRAL

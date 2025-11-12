@@ -1,8 +1,25 @@
-# Ignore Python cache
+# Python
 __pycache__/
-venv/
 *.pyc
-.ipynb_checkpoints/
-*.log
+
+# Virtual environments
+venv*/
+env*/
+.venv/
+
+# Editors / IDEs
 .vscode/
-.toml/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Config / Secrets
+.env
+config.ini
+secrets.json
+.streamlit/secrets.toml
+
+# Optional: ignore all TOML files (if you don't need any)
+# *.toml

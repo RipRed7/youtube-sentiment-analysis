@@ -1,24 +1,54 @@
 {
     "version": 1,
-    "disable_existing_loggers": true,
+    "disable_existing_loggers": false,
     "formatters": {
         "simple": {
             "format": "%(levelname)s: %(message)s"
+        },
+        "detailed": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(funcName)s %(lineno)d %(message)s"
         }
     },
     "handlers": {
         "stdout": {
             "class": "logging.StreamHandler",
+            "level": "INFO",
             "formatter": "simple",
             "stream": "ext://sys.stdout"
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "detailed",
+            "filename": "logs/app.log",
+            "maxBytes": 10485760,
+            "backupCount": 5,
+            "encoding": "utf8"
+        },
+        "error_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "ERROR",
+            "formatter": "detailed",
+            "filename": "logs/errors.log",
+            "maxBytes": 10485760,
+            "backupCount": 5,
+            "encoding": "utf8"
         }
     },
     "loggers": {
-        "root": {
+        "sentiment_analyzer": {
             "level": "DEBUG",
-            "handlers": [
-                "stdout"
-            ]
+            "handlers": ["stdout", "file", "error_file"],
+            "propagate": false
         }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["stdout"]
     }
 }
