@@ -34,11 +34,3 @@ class Comment:#entity
         """Domain logic: a comment can be analyzed"""
         self.sentiment = analyzer.analyze(self)
 
-
-@dataclass
-class Video: #aggregate root
-    id: str
-    comments: list[Comment]
-    
-    def add_comment(self, comment: Comment) -> None:
-        self.comments.append(comment)

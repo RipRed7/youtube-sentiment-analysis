@@ -1,6 +1,6 @@
 from src.utils.logger import AppLogger, get_logger
 from src.utils.exceptions import (
-    SentimentnAnalyzerError,
+    SentimentAnalyzerError,
     APIError,
     APIQuotaExceededError,
     APIConnectionError,
@@ -12,6 +12,5 @@ from src.utils.exceptions import (
     RepositoryError,
     CommentNotFoundError,
     ValidationError,
-    InvalidVideoIdError,
     InvalidURLError
 )

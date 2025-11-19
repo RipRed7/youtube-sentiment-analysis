@@ -1,5 +1,5 @@
 #root exception / base exception for all errors
-class SentimentnAnalyzerError(Exception):
+class SentimentAnalyzerError(Exception):
     def __init__(self, message: str, details: dict = None): #store context as data, not just strings
         self.message = message
         self.details = details or {}
@@ -11,7 +11,7 @@ class SentimentnAnalyzerError(Exception):
         return self.message
     
 #base class for API errors
-class APIError(SentimentnAnalyzerError):
+class APIError(SentimentAnalyzerError):
     pass
 
 class APIQuotaExceededError(APIError):
@@ -51,7 +51,7 @@ class CommentsDisabledError(APIError):
             }
         )
 
-class AnalysisError(SentimentnAnalyzerError):
+class AnalysisError(SentimentAnalyzerError):
     pass
 
 class ModelLoadError(AnalysisError):
@@ -74,7 +74,7 @@ class AnalysisFailedError(AnalysisError):
             }
         )
 
-class RepositoryError(SentimentnAnalyzerError):
+class RepositoryError(SentimentAnalyzerError):
     pass
 
 class CommentNotFoundError(RepositoryError):
@@ -84,18 +84,8 @@ class CommentNotFoundError(RepositoryError):
             details = {"comment_id": comment_id}
         )
 
-class ValidationError(SentimentnAnalyzerError):
+class ValidationError(SentimentAnalyzerError):
     pass
-
-class InvalidVideoIdError(ValidationError):
-    def __init__ (self, video_id: str):
-        super().__init__(
-            message = "Invalid Youtube video ID format",
-            details = {
-                "input_id": video_id,
-                "correct_format": "11 character string containing only letters and numbers"
-                }
-            )
         
 class InvalidURLError(ValidationError):
     def __init__(self, url: str):

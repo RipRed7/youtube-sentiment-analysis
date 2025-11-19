@@ -1,6 +1,9 @@
 import streamlit as st
 import os
 from urllib.parse import urlparse, parse_qs
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
 # Suppress tensorflow warnings (same as main.py)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -58,6 +61,70 @@ def extract_video_id(url: str) -> str:
     except Exception as e:
         logger.error(f"Failed to extract video ID from URL: {url}")
         raise InvalidURLError(url)
+
+def create_pie_chart(distribution):
+    logger.debug("Creating pie chart for sentiment distribution")
+
+    # prepare data
+    labels = []
+    sizes = []
+    colors = []
+
+    if distribution[SentimentLabel.POSITIVE] > 0:
+        labels.append('Positive 😊')
+        sizes.append(distribution[SentimentLabel.POSITIVE])
+        colors.append('#4CAF50')
+
+    if distribution[SentimentLabel.NEUTRAL] > 0:
+        labels.append('Neutral 😐')
+        sizes.append(distribution[SentimentLabel.NEUTRAL])
+        colors.append('#FFC107')  # Amber
+
+    if distribution[SentimentLabel.NEGATIVE] > 0:
+        labels.append('Negative 😞')
+        sizes.append(distribution[SentimentLabel.NEGATIVE])
+        colors.append('#F44336')  # Red
+
+    # Create pie chart
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
+           startangle=90, textprops={'fontsize': 14, 'weight': 'bold'})
+    ax.axis('equal')
+    plt.title('Sentiment Distribution', fontsize=16, weight='bold', pad=20)
+    
+    logger.debug("Pie chart created successfully")
+    return fig
+
+def create_word_cloud(service: CommentService):
+    logger.debug("Creating word cloud from comments")
+
+    comments = service.get_all_comments()
+
+    if not comments:
+        logger.warning("No comments available")
+        return None
+    
+    all_text = ' '.join([comment.text for comment in comments])
+
+    #create cloud
+    wordcloud = WordCloud(
+        width = 800,
+        height = 400,
+        background_color = 'white',
+        colormap = 'inferno',
+        max_words = 100,
+        relative_scaling = 0.5,
+        min_font_size = 10
+    ).generate(all_text)
+
+    fig, ax = plt.subplots(figsize = (12, 6))
+    ax.imshow(wordcloud, interpolation = 'bilinear')
+    ax.axis('off')
+    plt.title('Comment Word Cloud', fontsize = 16, weight = 'bold', pad = 20)
+    plt.tight_layout(pad = 0)
+
+    logger.debug("Word cloud created successfully")
+    return fig
     
 def display_results(service: CommentService):
     logger.debug("Displaying sentiment analysis results")
@@ -68,7 +135,7 @@ def display_results(service: CommentService):
 
     logger.info(f"Displaying results for {total} comments")
 
-    # Display sentiment bar chart
+    # Display sentiment visuals
     st.subheader("📊 Sentiment Distribution")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -84,12 +151,30 @@ def display_results(service: CommentService):
         negative_pct = (negative_count / total * 100) if total > 0 else 0
         st.metric("😞 Negative", f"{negative_count}", f"{negative_pct:.1f}%")
 
-    # Bar chart
+    #Bar chart
     st.bar_chart({
-        "Positive": positive_count,
-        "Neutral": neutral_count,
-        "Negative": negative_count
+      "Positive": positive_count,
+       "Neutral": neutral_count,
+       "Negative": negative_count
     })
+
+    # Create two columns for visualizations
+    col_left, col_right = st.columns(2)
+
+    # Display pie chart
+    with col_left:
+        st.subheader("🥧 Sentiment Breakdown")
+        pie_chart = create_pie_chart(distribution)
+        st.pyplot(pie_chart)
+    
+    # Display word cloud
+    with col_right:
+        st.subheader("☁️ Most Common Words")
+        word_cloud = create_word_cloud(service)
+        if word_cloud:
+            st.pyplot(word_cloud)
+        else:
+            st.info("Not enough comment data to generate word cloud")
 
     logger.debug("Results displayed successfully")
 
