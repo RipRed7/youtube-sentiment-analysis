@@ -47,12 +47,3 @@ class InMemoryCommentRepo(ICommentRepository):
         comments = list(self.comments.values())
         self.logger.debug(f"Retrieved all {len(comments)} comemnts from repo")
         return comments
-
-    def delete(self, comment_id):
-        #delete a comment by its id
-        if comment_id in self.comments:
-            del self.comments[comment_id]
-            self.logger.info(f"Deleted comment {comment_id} from repo (remaining: {len(self.comments)})")
-        else:
-            self.logger.error(f"Attempted to delete non-existent comment: {comment_id}")
-            raise CommentNotFoundError(comment_id)

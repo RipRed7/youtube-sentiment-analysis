@@ -22,7 +22,3 @@ class ICommentRepository(ABC):
     @abstractmethod
     def get_all(self) -> List[Comment]:
         pass #get all comments
-
-    @abstractmethod
-    def delete(self, comment_id: int) -> None:
-        pass #delete a comment by its ID
