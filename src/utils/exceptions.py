@@ -25,11 +25,11 @@ class APIQuotaExceededError(APIError):
         )
 
 class APIConnectionError(APIError):
-    def __init__(self, original_error: Exception):
+    def __init__(self, original_error: Exception = None):
         super().__init__(
             message = "Failed to connect to Youtube API",
-            details = {"original_error": str(original_error),
-            "suggestion": "Check your internet connection"
+            details = {"original_error": str(original_error) if original_error else "Unknown error",
+            "suggestion": "Check your internet connection and API credentials"
             }
         )
 

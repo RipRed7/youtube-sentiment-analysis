@@ -39,7 +39,7 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
 
         except Exception as e:
             self.logger.exception(f"Failed to load BERT model: {model_name}")
-            raise ModelLoadError(model_name) from e
+            raise ModelLoadError(model_name, e)
 
     def analyze(self, text: str) -> dict:
         #analyze comment and return result in a dict
@@ -48,11 +48,63 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
             return {"label": "NEUTRAL", "score": 0.0}
         
         try:
-            self.logger.debug(f"Analyzing text: {text[: 50]}...")
+            self.logger.debug(f"Analyzing text: {text[:50]}...")
             result = self.sentiment_analyzer(text)[0]
-            self.logger.debug(f"Analysis result: {result['label']} (confidence: {result['score']:.3f})")
-            return result
+            
+            # Map RoBERTa labels to human-readable labels
+            # cardiffnlp/twitter-roberta-base-sentiment returns:
+            # LABEL_0 = Negative
+            # LABEL_1 = Neutral
+            # LABEL_2 = Positive
+            label_mapping = {
+                'LABEL_0': 'NEGATIVE',
+                'LABEL_1': 'NEUTRAL',
+                'LABEL_2': 'POSITIVE'
+            }
+            
+            # Get the raw label and map it
+            raw_label = result['label']
+            mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
+            
+            mapped_result = {
+                'label': mapped_label,
+                'score': result['score']
+            }
+            
+            self.logger.debug(f"Analysis result: {mapped_label} (confidence: {result['score']:.3f})")
+            return mapped_result
 
         except Exception as e:
             self.logger.exception(f"Sentiment analysis failed for text: {text[:100]}")
-            raise AnalysisFailedError(comment_id = 0, original_error = e)
+            raise AnalysisFailedError(comment_id=0, original_error=e)
+        
+
+    def analyze_comments_batch(self, comments: list[dict], batch_size: int = 64) -> list[dict]:
+        """
+        Batch analyze a list of comments.
+
+        Args:
+            comments: list of dicts with 'text' key
+            batch_size: number of comments to process at once
+
+        Returns:
+            list of dicts with 'label' and 'score' for each comment
+        """
+        results = []
+
+        # Extract only the text
+        texts = [c["text"] for c in comments]
+
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i+batch_size]
+
+            # Hugging Face expects a list of strings
+            batch_results = self.sentiment_analyzer(batch_texts)
+
+            label_mapping = {'LABEL_0': 'NEGATIVE', 'LABEL_1': 'NEUTRAL', 'LABEL_2': 'POSITIVE'}
+            for r in batch_results:
+                raw_label = r['label']
+                mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
+                results.append({'label': mapped_label, 'score': r['score']})
+
+        return results
