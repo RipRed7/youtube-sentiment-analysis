@@ -9,23 +9,22 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
     _pipeline = None # Class-level attribute for the pipeline
     _logger = None # Class-level attribute for the logger
 
-    def __init__(self, batch ):
+    def __init__(self):
         if BertSentimentAnalyzer._logger is None:
             BertSentimentAnalyzer._logger = get_logger()
 
         self.logger = BertSentimentAnalyzer._logger
 
         if BertSentimentAnalyzer._pipeline is None: # check if pipeline exists, if created already, reuse instead of reloading
-            BertSentimentAnalyzer._pipeline = pipeline('sentiment-analysis', model='mervp/SentimentBERT') #load model
+            self.load_model()
         else:
             self.logger.debug("Reusing existing BERT model pipeline")
 
         self.sentiment_analyzer = BertSentimentAnalyzer._pipeline # Instance level attribute pointing to shared class-level attribute
 
     def load_model(self) -> None:
-        # Load the BERT model pipeline
-            # Smaller and faster version of the BERT model
-        model_name = 'mervp/SentimentBERT'
+        # Load the RoBERTa model pipeline
+        model_name = 'cardiffnlp/twitter-roberta-base-sentiment'
 
         try:
             self.logger.info(f"Loading BERT model: {model_name}")

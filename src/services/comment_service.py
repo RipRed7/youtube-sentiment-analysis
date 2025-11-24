@@ -140,5 +140,3 @@ class CommentService:
         self.logger.debug(f"Retrieved {len(comments)} comments from repository")
         return comments
     
-
-
