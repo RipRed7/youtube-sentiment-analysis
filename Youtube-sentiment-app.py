@@ -140,7 +140,6 @@ def get_oauth_component():
         authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
         token_endpoint="https://oauth2.googleapis.com/token",
         refresh_token_endpoint="https://oauth2.googleapis.com/token"
-        # Removed revoke_token_endpoint - not critical for basic OAuth flow
     )
 
 
@@ -208,19 +207,27 @@ def handle_authentication():
     st.markdown("Please login with your Google account to analyze YouTube videos.")
     st.markdown("---")
     
+    # Get redirect URI from environment (supports both local and cloud)
+    redirect_uri = os.getenv(
+        "STREAMLIT_REDIRECT_URI", 
+        "http://localhost:8501"  # for local development
+    )
+    
     # OAuth login button
-    # NEW (explicitly force scope)
     result = oauth.authorize_button(
-    name="Login with Google",
-    icon="https://www.google.com/favicon.ico",
-    redirect_uri=os.getenv("STREAMLIT_REDIRECT_URI", "http://localhost:8501"),
-    scope="openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl",
-    key="google_oauth",
-    extras_params={
-        "access_type": "offline",
-        "prompt": "consent",
-        "include_granted_scopes": "true"
-    })
+        name="Login with Google",
+        icon="https://www.google.com/favicon.ico",
+        redirect_uri=redirect_uri,  # Use dynamic redirect URI
+        scope=" ".join(SCOPES),  # Convert list to space-separated string
+        key="google_oauth",
+        extras_params={
+            "access_type": "offline",
+            "prompt": "consent",
+            "include_granted_scopes": "true"
+        }
+    )
+    
+    # ... rest of your code
     
     if result and "token" in result:
         # Successfully authenticated
