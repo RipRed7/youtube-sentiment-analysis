@@ -262,13 +262,62 @@ def analyze_video(
                 detail="No YouTube access token found. Please login again."
             )
         
-        # 4. Create or get video in database
+        # 4. Create or get video in database (with title)
+        # First, try to get the video title from YouTube
+        video_title = None
+        try:
+            import requests as req
+            title_response = req.get(
+                f"https://www.googleapis.com/youtube/v3/videos",
+                params={
+                    "part": "snippet",
+                    "id": video_id,
+                    "fields": "items(snippet(title))"
+                },
+                headers={"Authorization": f"Bearer {user.access_token}"},
+                timeout=5
+            )
+            if title_response.status_code == 200:
+                title_data = title_response.json()
+                if title_data.get("items"):
+                    video_title = title_data["items"][0]["snippet"]["title"]
+                    logger.info(f"📺 Video title: {video_title}")
+        except Exception as e:
+            logger.warning(f"Could not fetch video title: {e}")
+        
         video = crud.create_or_get_video(
             db,
             youtube_video_id=video_id,
-            user_id=user.user_id
+            user_id=user.user_id,
+            title=video_title
         )
         logger.info(f"📊 Video DB ID: {video.video_id}")
+        
+        # 4.5. Check for recent cached analysis (within 24 hours)
+        logger.info("🔍 Checking for cached analysis...")
+        cached_analysis = crud.get_recent_analysis(db, video_id, hours=24)
+        
+        if cached_analysis:
+            logger.info(f"✅ Found cached analysis from {cached_analysis.created_at}")
+            
+            # Parse top negative comments from cache
+            top_negative = crud.parse_top_negative_comments(cached_analysis)
+            
+            return AnalyzeResponse(
+                success=True,
+                message="Retrieved cached analysis!",
+                analysis_id=cached_analysis.analysis_id,
+                video_id=video.video_id,
+                total_comments=cached_analysis.total_comments,
+                positive_count=cached_analysis.positive_count,
+                negative_count=cached_analysis.negative_count,
+                neutral_count=cached_analysis.neutral_count,
+                positive_percentage=float(cached_analysis.positive_percentage),
+                negative_percentage=float(cached_analysis.negative_percentage),
+                neutral_percentage=float(cached_analysis.neutral_percentage)
+            )
+        
+        logger.info("📥 No cached analysis found, proceeding with fresh analysis...")
         
         # 5. Fetch comments from YouTube
         try:
@@ -326,7 +375,8 @@ def analyze_video(
 
             # --- BATCH ANALYSIS ---
             logger.info("Running batch analysis...")
-            batch_results = analyzer.analyze_comments_batch(raw_comments, batch_size= 32)
+            comment_texts = [comment["text"] for comment in raw_comments]
+            batch_results = analyzer.analyze_comments_batch(comment_texts, batch_size=32)
 
             # Reset counters and lists
             sentiment_counts = {"POSITIVE": 0, "NEGATIVE": 0, "NEUTRAL": 0}

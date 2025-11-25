@@ -49,20 +49,15 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
         
         try:
             self.logger.debug(f"Analyzing text: {text[:50]}...")
-            result = self.sentiment_analyzer(text)[0]
+            result = self.sentiment_analyzer(text, truncation=True, max_length=128)[0]
             
             # Map RoBERTa labels to human-readable labels
-            # cardiffnlp/twitter-roberta-base-sentiment returns:
-            # LABEL_0 = Negative
-            # LABEL_1 = Neutral
-            # LABEL_2 = Positive
             label_mapping = {
                 'LABEL_0': 'NEGATIVE',
                 'LABEL_1': 'NEUTRAL',
                 'LABEL_2': 'POSITIVE'
             }
             
-            # Get the raw label and map it
             raw_label = result['label']
             mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
             
@@ -79,62 +74,67 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
             raise AnalysisFailedError(comment_id=0, original_error=e)
         
 
-def analyze_comments_batch(self, texts: List[str], batch_size: int = 32) -> List[Dict]:
-        """
-        Analyze multiple comments in batches for better performance
-        
-        Args:
-            texts: List of text strings to analyze
-            batch_size: Number of texts to process at once (default: 32)
+    def analyze_comments_batch(self, texts: List[str], batch_size: int = 32) -> List[Dict]:
+            """
+            Analyze multiple comments in batches for better performance
             
-        Returns:
-            List of dicts with 'label' and 'score' keys
-        """
-        if not texts:
-            self.logger.warning("Empty text list provided for batch analysis")
-            return []
-        
-        self.logger.info(f"Starting batch analysis of {len(texts)} texts with batch_size={batch_size}")
-        
-        # Filter out empty texts and keep track of original indices
-        valid_texts = []
-        valid_indices = []
-        
-        for i, text in enumerate(texts):
-            if text and text.strip():
-                valid_texts.append(text)
-                valid_indices.append(i)
-        
-        # Initialize results with neutral for all texts
-        results = [{"label": "NEUTRAL", "score": 0.0} for _ in range(len(texts))]
-        
-        if not valid_texts:
-            self.logger.warning("No valid texts to analyze after filtering")
-            return results
-        
-        try:
-            # Use the pipeline's batch processing capability
-            batch_results = self.sentiment_analyzer(valid_texts, batch_size=batch_size)
+            Args:
+                texts: List of text strings to analyze
+                batch_size: Number of texts to process at once (default: 32)
+                
+            Returns:
+                List of dicts with 'label' and 'score' keys
+            """
+            if not texts:
+                self.logger.warning("Empty text list provided for batch analysis")
+                return []
             
-            # Map RoBERTa labels to human-readable labels
-            label_mapping = {
-                'LABEL_0': 'NEGATIVE',
-                'LABEL_1': 'NEUTRAL',
-                'LABEL_2': 'POSITIVE'
-            }
+            self.logger.info(f"Starting batch analysis of {len(texts)} texts with batch_size={batch_size}")
             
-            # Map results back to original indices
-            for idx, result in zip(valid_indices, batch_results):
-                raw_label = result['label']
-                mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
-                results[idx] = {
-                    'label': mapped_label,
-                    'score': result['score']
+            # Filter out empty texts and keep track of original indices
+            valid_texts = []
+            valid_indices = []
+            
+            for i, text in enumerate(texts):
+                if text and text.strip():
+                    valid_texts.append(text)
+                    valid_indices.append(i)
+            
+            # Initialize results with neutral for all texts
+            results = [{"label": "NEUTRAL", "score": 0.0} for _ in range(len(texts))]
+            
+            if not valid_texts:
+                self.logger.warning("No valid texts to analyze after filtering")
+                return results
+            
+            try:
+                # Use the pipeline's batch processing capability with truncation
+                batch_results = self.sentiment_analyzer(
+                    valid_texts, 
+                    batch_size=batch_size,
+                    truncation=True,
+                    max_length=128
+                )
+                
+                # Map RoBERTa labels to human-readable labels
+                label_mapping = {
+                    'LABEL_0': 'NEGATIVE',
+                    'LABEL_1': 'NEUTRAL',
+                    'LABEL_2': 'POSITIVE'
                 }
-            
-            self.logger.info(f"Batch analysis complete: {len(valid_texts)} texts analyzed")
-            return results
-            
-        except Exception as e:
-            self.logger.exception(f"Batch sentiment analysis failed")
-            raise AnalysisFailedError(comment_id=0, original_error=e)
+                
+                # Map results back to original indices
+                for idx, result in zip(valid_indices, batch_results):
+                    raw_label = result['label']
+                    mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
+                    results[idx] = {
+                        'label': mapped_label,
+                        'score': result['score']
+                    }
+                
+                self.logger.info(f"Batch analysis complete: {len(valid_texts)} texts analyzed")
+                return results
+                
+            except Exception as e:
+                self.logger.exception(f"Batch sentiment analysis failed")
+                raise AnalysisFailedError(comment_id=0, original_error=e)

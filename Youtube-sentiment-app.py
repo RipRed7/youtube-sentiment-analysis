@@ -90,6 +90,38 @@ def extract_video_id(url_or_id: str) -> str:
     # Return as-is if can't parse
     return url_or_id
 
+def get_video_title(video_id: str, access_token: str) -> str:
+    """
+    Fetch video title from YouTube API
+    
+    Args:
+        video_id: YouTube video ID
+        access_token: User's access token
+        
+    Returns:
+        Video title or video ID if fetch fails
+    """
+    try:
+        response = requests.get(
+            f"https://www.googleapis.com/youtube/v3/videos",
+            params={
+                "part": "snippet",
+                "id": video_id,
+                "fields": "items(snippet(title))"
+            },
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("items"):
+                return data["items"][0]["snippet"]["title"]
+    except Exception as e:
+        st.warning(f"Could not fetch video title: {e}")
+    
+    return video_id  # Fallback to ID if fetch fails
+
 
 # ============================================================================
 # OAUTH AUTHENTICATION
@@ -328,17 +360,9 @@ def display_top_negative_comments(youtube_video_url: str):
         return
     
     for i, comment in enumerate(comments, 1):
-        with st.expander(f"#{i} - {comment['author']} (Confidence: {comment['confidence']:.1%})"):
+        with st.expander(f" (Confidence: {comment['confidence']:.1%})"):
             st.write(comment['text'])
-            
-            # Sentiment indicator
-            confidence_pct = comment['confidence'] * 100
-            if confidence_pct >= 90:
-                st.caption("🔴 Very Negative (High Confidence)")
-            elif confidence_pct >= 75:
-                st.caption("🟠 Negative (Medium Confidence)")
-            else:
-                st.caption("🟡 Negative (Lower Confidence)")
+
 
 def get_user_videos(limit: int = 10) -> list:
     """Get user's video history from FastAPI"""
@@ -373,41 +397,71 @@ def display_analysis_results(results: dict):
         st.warning(results.get("message", "Analysis failed"))
         return
     
-    st.success("✅ " + results.get("message", "Analysis complete!"))
+    message = results.get("message", "Analysis complete!")
+    
+    st.success( results.get("message", "Analysis complete!"))
     
     # Summary metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric(
-            "📊 Total Comments",
+            "Total Comments",
             results["total_comments"]
         )
     
     with col2:
-        st.metric(
-            "😊 Positive",
-            results["positive_count"],
-            f"{results['positive_percentage']:.1f}%"
+        st.markdown(
+            f"""
+            <div style="font-size: 14px; font-weight: 600; ">
+                Positive
+            </div>
+            <div style="font-size: 35px; font-weight: 700; color:#28a745;">
+                {results["positive_count"]}
+            </div>
+            <div style="font-size: 18px;">
+                {results['positive_percentage']:.1f}%
+            </div>
+            """,
+            unsafe_allow_html=True
         )
+
     
     with col3:
-        st.metric(
-            "😐 Neutral",
-            results["neutral_count"],
-            f"{results['neutral_percentage']:.1f}%"
+        st.markdown(
+            f"""
+            <div style="font-size: 14px; font-weight: 600; ">
+                Neutral
+            </div>
+            <div style="font-size: 35px; font-weight: 700; color:#999999;">
+                {results["neutral_count"]}
+            </div>
+            <div style="font-size: 18px;">
+                {results['neutral_percentage']:.1f}%
+            </div>
+            """,
+            unsafe_allow_html=True
         )
     
     with col4:
-        st.metric(
-            "😞 Negative",
-            results["negative_count"],
-            f"{results['negative_percentage']:.1f}%"
+        st.markdown(
+            f"""
+            <div style="font-size: 14px; font-weight: 600; ">
+                Negative
+            </div>
+            <div style="font-size: 35px; font-weight: 700; color:#DC143C;">
+                {results["negative_count"]}
+            </div>
+            <div style="font-size: 18px;">
+                {results['negative_percentage']:.1f}%
+            </div>
+            """,
+            unsafe_allow_html=True
         )
     
     # Bar chart
     st.markdown("---")
-    st.subheader("📊 Sentiment Distribution")
+    st.subheader("Sentiment Distribution")
     
     import plotly.graph_objects as go
     
@@ -456,35 +510,44 @@ def display_top_negative_comments(youtube_video_url: str):
 
 def display_video_history():
     """Display user's video analysis history"""
-    st.subheader("📹 Your Analysis History")
+    st.subheader("Analysis History")
     
     with st.spinner("Loading your videos..."):
         videos = get_user_videos(limit=20)
     
     if not videos:
-        st.info("No videos analyzed yet. Start by analyzing your first video! 🎬")
+        st.info("No videos analyzed yet. Start by analyzing your first video!")
         return
     
-    st.markdown(f"*You have analyzed {len(videos)} video(s)*")
+    st.markdown(f"**{len(videos)} video(s) analyzed**")
     st.markdown("---")
     
     for video in videos:
-        col1, col2 = st.columns([3, 1])
+        # Use title if available, fallback to ID
+        display_title = video.get('title') or f"Video {video['youtube_video_id']}"
         
-        with col1:
-            title = video.get('title') or video['youtube_video_id']
-            st.markdown(f"**📺 {title}**")
-            st.caption(f"Video ID: `{video['youtube_video_id']}` • Analyzed: {video['created_at'][:10]} • Analyses: {video['analysis_count']}")
+        # Create card-like layout
+        st.markdown(f"""
+        <div class="video-card">
+            <div class="video-title">{display_title}</div>
+            <div class="video-meta">
+                Analyzed: {video['created_at'][:10]} | 
+                Analyses: {video['analysis_count']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([5, 1])
         
         with col2:
-            if st.button("View", key=f"view_{video['video_id']}"):
-                # Store FULL YouTube URL instead of just video ID
+            if st.button("View Analysis", key=f"view_{video['video_id']}", use_container_width=True):
                 full_url = f"https://www.youtube.com/watch?v={video['youtube_video_id']}"
                 st.session_state.selected_video = full_url
                 st.session_state.switch_to_analyze = True
+                st.session_state.video_url_input = full_url
                 st.rerun()
         
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================================
 # MAIN APPLICATION
@@ -519,8 +582,9 @@ def main():
     """, unsafe_allow_html=True)
     
     # Header
-    st.title("🎬 YouTube Sentiment Analyzer")
-    st.markdown("*Analyze YouTube video comments with AI-powered sentiment analysis*")
+    st.title("YouTube Sentiment Analyzer")
+    st.markdown("#### Analyze YouTube video comments with AI-powered sentiment analysis")
+    st.markdown("---")
     
     # Check authentication
     if not handle_authentication():
@@ -528,24 +592,24 @@ def main():
         
         # Show features while logged out
         st.markdown("---")
-        st.markdown("### ✨ Features")
+        st.markdown("###  Features")
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown("🤖 **AI-Powered**")
-            st.caption("Uses BERT transformer model for accurate sentiment analysis")
+            st.markdown(" **AI-Powered**")
+            st.caption("Uses BERT transformer model for sentiment analysis")
         with col2:
-            st.markdown("📊 **Visual Analytics**")
+            st.markdown(" **Visual Analytics**")
             st.caption("Interactive charts and sentiment breakdowns")
         with col3:
-            st.markdown("💬 **Top Comments**")
-            st.caption("Identifies most negative comments automatically")
+            st.markdown(" **Top Comments**")
+            st.caption("Identifies top comments automatically")
         
         st.markdown("---")
-        st.markdown("### 🚀 How It Works")
+        st.markdown("### How It Works")
         st.markdown("1. Login with your Google account")
         st.markdown("2. Paste a YouTube video URL")
-        st.markdown("3. Get instant sentiment analysis results")
-        st.markdown("4. View detailed breakdowns and top negative comments")
+        st.markdown("3. Get sentiment analysis results")
+        st.markdown("4. View detailed charts and top comments")
         
         st.stop()
     
@@ -553,19 +617,22 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.markdown("### 👤 User Profile")
-        st.markdown(f"**{st.session_state.user_info['name']}**")
-        st.markdown(f"📧 {st.session_state.user_info['email']}")
+        # User profile section with custom styling
+        st.markdown(f"""
+        <div class="profile-section">
+            <h3>{st.session_state.user_info['name']}</h3>
+            <p>{st.session_state.user_info['email']}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if st.session_state.user_info.get('picture'):
-            st.image(st.session_state.user_info['picture'], width=100)
-        
-        st.markdown("---")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.image(st.session_state.user_info['picture'], width=80)
         
         # Navigation - handle switch from history page
         if st.session_state.get("switch_to_analyze"):
             default_index = 0  # Analyze Video page
-            st.session_state.switch_to_analyze = False
         else:
             default_index = 0
         
@@ -573,13 +640,18 @@ def main():
             "Navigation",
             ["🔍 Analyze Video", "📹 History"],
             index=default_index,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="page_navigation"
         )
+        
+        # Clear the switch flag AFTER page is set
+        if st.session_state.get("switch_to_analyze"):
+            st.session_state.switch_to_analyze = False
         
         st.markdown("---")
         
         # Logout button
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             logout()
 
     # Main content area
@@ -587,20 +659,26 @@ def main():
         st.markdown("### Analyze YouTube Video Comments")
         st.markdown("Enter a YouTube video URL to analyze the sentiment of its comments.")
         
-        # Video URL input
-        default_url = st.session_state.get("selected_video", "")
+        # Initialize or update video URL from history page
+        if "video_url_input" not in st.session_state:
+            st.session_state.video_url_input = ""
         
+        if st.session_state.get("selected_video"):
+            st.session_state.video_url_input = st.session_state.selected_video
+            del st.session_state.selected_video
+        
+        # Video URL input
         video_url = st.text_input(
             "YouTube Video URL",
-            value=default_url,
+            value=st.session_state.video_url_input,
             placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             help="Paste the full URL or just the video ID",
             label_visibility="collapsed"
         )
         
-        # Clear the selected video after it's been used
-        if "selected_video" in st.session_state and default_url:
-            del st.session_state["selected_video"]
+        # Always update session state
+        if video_url != st.session_state.video_url_input:
+            st.session_state.video_url_input = video_url
 
         # Analyze button
         col1, col2, col3 = st.columns([2, 1, 1])
@@ -621,13 +699,13 @@ def main():
         
         # Handle analysis
         if analyze_button:
-            if not video_url:
+            if not video_url or not video_url.strip():
                 st.error("⚠️ Please enter a YouTube URL")
             else:
-                # Clear previous analyzing state
-                st.session_state.analyzing = False
+                # Debug: show what URL is being analyzed
+                st.info(f"Analyzing: {video_url}")
                 
-                with st.spinner("🎬 Fetching comments and analyzing sentiment... This may take 30-60 seconds."):
+                with st.spinner("🎬 Fetching comments and analyzing sentiment... "):
                     results = analyze_video(video_url)
                     
                     # Only store results if they exist and are successful

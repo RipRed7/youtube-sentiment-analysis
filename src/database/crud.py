@@ -337,3 +337,34 @@ def parse_top_negative_comments(analysis: Analysis) -> Optional[List[dict]]:
         return json.loads(analysis.top_negative_comments)
     except json.JSONDecodeError:
         return None
+    
+
+def get_recent_analysis(db: Session, youtube_video_id: str, hours: int = 24) -> Optional[Analysis]:
+    """
+    Get recent analysis for a video (within specified hours)
+    
+    Args:
+        db: Database session
+        youtube_video_id: YouTube video ID
+        hours: How recent the analysis should be (default: 24 hours)
+        
+    Returns:
+        Analysis if found within time window, None otherwise
+    """
+    from datetime import datetime, timedelta
+    
+    video = get_video_by_youtube_id(db, youtube_video_id)
+    if not video:
+        return None
+    
+    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+    
+    analysis = (
+        db.query(Analysis)
+        .filter_by(video_id=video.video_id)
+        .filter(Analysis.created_at >= cutoff_time)
+        .order_by(desc(Analysis.created_at))
+        .first()
+    )
+    
+    return analysis
