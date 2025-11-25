@@ -135,21 +135,13 @@ def get_oauth_component():
         st.stop()
     
     return OAuth2Component(
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
-    token_endpoint="https://oauth2.googleapis.com/token",
-
-    # This is required for httpx_oauth + Google
-    revoke_token_endpoint_auth_method="client_secret_basic",
-
-    refresh_token_endpoint="https://oauth2.googleapis.com/token",
-    revoke_token_endpoint="https://oauth2.googleapis.com/revoke",
-
-    # Required for Google OAuth (scope must be set)
-    scope=["openid", "email", "profile"]
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
+        token_endpoint="https://oauth2.googleapis.com/token",
+        refresh_token_endpoint="https://oauth2.googleapis.com/token"
+        # Removed revoke_token_endpoint - not critical for basic OAuth flow
     )
-
 
 
 def get_google_user_info(access_token: str) -> Optional[dict]:
