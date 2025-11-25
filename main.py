@@ -47,7 +47,7 @@ app = FastAPI(
 )
 
 # Configure CORS for Streamlit
-FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:8501").split(",")
+FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:8501,https://*.streamlit.app").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -665,7 +665,7 @@ if __name__ == "__main__":
     import uvicorn
     
     host = os.getenv("FASTAPI_HOST", "0.0.0.0")
-    port = int(os.getenv("FASTAPI_PORT", 8000))
+    port = int(os.getenv("PORT", 8000))
     
     print("=" * 60)
     print("🚀 YouTube Sentiment Analyzer - FastAPI Backend")
