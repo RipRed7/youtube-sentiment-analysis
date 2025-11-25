@@ -141,7 +141,7 @@ def get_oauth_component():
     token_endpoint="https://oauth2.googleapis.com/token",
 
     # This is required for httpx_oauth + Google
-    revocation_endpoint_auth_method="client_secret_basic",
+    revoke_token_endpoint_auth_method="client_secret_basic",
 
     refresh_token_endpoint="https://oauth2.googleapis.com/token",
     revoke_token_endpoint="https://oauth2.googleapis.com/revoke",
