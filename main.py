@@ -326,7 +326,7 @@ def analyze_video(
 
             # --- BATCH ANALYSIS ---
             logger.info("Running batch analysis...")
-            batch_results = analyzer.analyze_comments_batch(raw_comments, batch_size= 64)
+            batch_results = analyzer.analyze_comments_batch(raw_comments, batch_size= 32)
 
             # Reset counters and lists
             sentiment_counts = {"POSITIVE": 0, "NEGATIVE": 0, "NEUTRAL": 0}
@@ -555,7 +555,6 @@ def get_top_negative_comments(
             status_code=500,
             detail=f"Failed to retrieve comments: {str(e)}"
         )
-
 
 # ============================================================================
 # ERROR HANDLERS

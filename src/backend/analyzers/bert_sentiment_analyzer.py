@@ -1,8 +1,8 @@
-import torch
 from transformers import pipeline
 from src.backend.analyzers.Isentiment_analyzer import ISentimentAnalyzer
 from src.utils.logger import get_logger
 from src.utils.exceptions import ModelLoadError, AnalysisFailedError
+from typing import List, Dict
 
 class BertSentimentAnalyzer(ISentimentAnalyzer):
     #bert sentiment analyzer
@@ -79,32 +79,62 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
             raise AnalysisFailedError(comment_id=0, original_error=e)
         
 
-    def analyze_comments_batch(self, comments: list[dict], batch_size: int = 64) -> list[dict]:
+def analyze_comments_batch(self, texts: List[str], batch_size: int = 32) -> List[Dict]:
         """
-        Batch analyze a list of comments.
-
+        Analyze multiple comments in batches for better performance
+        
         Args:
-            comments: list of dicts with 'text' key
-            batch_size: number of comments to process at once
-
+            texts: List of text strings to analyze
+            batch_size: Number of texts to process at once (default: 32)
+            
         Returns:
-            list of dicts with 'label' and 'score' for each comment
+            List of dicts with 'label' and 'score' keys
         """
-        results = []
-
-        # Extract only the text
-        texts = [c["text"] for c in comments]
-
-        for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i+batch_size]
-
-            # Hugging Face expects a list of strings
-            batch_results = self.sentiment_analyzer(batch_texts)
-
-            label_mapping = {'LABEL_0': 'NEGATIVE', 'LABEL_1': 'NEUTRAL', 'LABEL_2': 'POSITIVE'}
-            for r in batch_results:
-                raw_label = r['label']
+        if not texts:
+            self.logger.warning("Empty text list provided for batch analysis")
+            return []
+        
+        self.logger.info(f"Starting batch analysis of {len(texts)} texts with batch_size={batch_size}")
+        
+        # Filter out empty texts and keep track of original indices
+        valid_texts = []
+        valid_indices = []
+        
+        for i, text in enumerate(texts):
+            if text and text.strip():
+                valid_texts.append(text)
+                valid_indices.append(i)
+        
+        # Initialize results with neutral for all texts
+        results = [{"label": "NEUTRAL", "score": 0.0} for _ in range(len(texts))]
+        
+        if not valid_texts:
+            self.logger.warning("No valid texts to analyze after filtering")
+            return results
+        
+        try:
+            # Use the pipeline's batch processing capability
+            batch_results = self.sentiment_analyzer(valid_texts, batch_size=batch_size)
+            
+            # Map RoBERTa labels to human-readable labels
+            label_mapping = {
+                'LABEL_0': 'NEGATIVE',
+                'LABEL_1': 'NEUTRAL',
+                'LABEL_2': 'POSITIVE'
+            }
+            
+            # Map results back to original indices
+            for idx, result in zip(valid_indices, batch_results):
+                raw_label = result['label']
                 mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
-                results.append({'label': mapped_label, 'score': r['score']})
-
-        return results
+                results[idx] = {
+                    'label': mapped_label,
+                    'score': result['score']
+                }
+            
+            self.logger.info(f"Batch analysis complete: {len(valid_texts)} texts analyzed")
+            return results
+            
+        except Exception as e:
+            self.logger.exception(f"Batch sentiment analysis failed")
+            raise AnalysisFailedError(comment_id=0, original_error=e)

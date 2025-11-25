@@ -79,18 +79,56 @@ class CommentService:
 
         self.logger.info(f"Comment {comment_id} analyzed: {sentiment_label.value} (confidence: {sentiment.Confidence:.3f})")
         return sentiment
+    
 
-    def analyze_all_comments(self) -> Dict[int, Sentiment]:
-        # analyze sentiment for all comments
-        comments = self.comment_repo.get_all()
-        total_comments = len(comments)
-
-        self.logger.info(f"Starting batch sentiment analysis for {total_comments} comments")
-
+    def analyze_batch(self, comments: List[Comment], batch_size: int) -> Dict[int, Sentiment]:
+        """Analyze comments using batch processing"""
         results = {}
         successes = 0
         failures = 0
 
+        try:
+            # Extract all texts
+            texts = [comment.text for comment in comments]
+            
+            # Analyze in batch
+            raw_results = self.analyzer.analyze_batch(texts, batch_size=batch_size)
+            
+            # Map results back
+            label_map = {
+                "POSITIVE": SentimentLabel.POSITIVE,
+                "NEGATIVE": SentimentLabel.NEGATIVE,
+                "NEUTRAL": SentimentLabel.NEUTRAL
+            }
+            
+            for comment, raw_result in zip(comments, raw_results):
+                try:
+                    sentiment_label = label_map.get(raw_result['label'], SentimentLabel.NEUTRAL)
+                    sentiment = Sentiment(label=sentiment_label, Confidence=raw_result['score'])
+                    comment.sentiment = sentiment
+                    self.comment_repo.update(comment)
+                    results[comment.id] = sentiment
+                    successes += 1
+                    
+                    if successes % 50 == 0:
+                        self.logger.info(f"Progress: {successes}/{len(comments)} analyzed")
+                        
+                except Exception as e:
+                    failures += 1
+                    self.logger.error(f"Failed to process comment {comment.id}: {e}")
+            
+            self.logger.info(f"Batch complete: {successes} succeeded, {failures} failed")
+            return results
+            
+        except Exception as e:
+            self.logger.exception("Batch failed, falling back to sequential")
+            return self._analyze_sequential(comments)
+        
+    def analyze_sequential(self, comments: List[Comment]) -> Dict[int, Sentiment]:
+        """Sequential analysis (original method)"""
+        results = {}
+        successes = 0
+        failures = 0
 
         for i, comment in enumerate(comments):
             try:
@@ -98,16 +136,40 @@ class CommentService:
                 results[comment.id] = sentiment
                 successes += 1
 
-                if i % 10 == 0:
-                    self.logger.info(f"Progress: {i}/{total_comments} comments analyzed")
+                if (i + 1) % 10 == 0:
+                    self.logger.info(f"Progress: {i + 1}/{len(comments)} analyzed")
 
             except Exception as e:
                 failures += 1
                 self.logger.error(f"Failed to analyze comment {comment.id}: {e}")
                 continue
 
-        self.logger.info(f"Batch analysis complete: {successes} succeeded, {failures} failed")
+        self.logger.info(f"Sequential complete: {successes} succeeded, {failures} failed")
         return results
+
+    def analyze_all_comments(self, batch_size: int = 32) -> Dict[int, Sentiment]:
+        """
+        Analyze sentiment for all comments (uses batch processing if available)
+        
+        Args:
+            batch_size: Number of comments to process at once (default: 32)
+        """
+        comments = self.comment_repo.get_all()
+        total_comments = len(comments)
+
+        self.logger.info(f"Starting batch sentiment analysis for {total_comments} comments (batch_size={batch_size})")
+
+        if total_comments == 0:
+            return {}
+
+        # Check if analyzer supports batch processing
+        if hasattr(self.analyzer, 'analyze_batch'):
+            self.logger.info("Using batch processing for faster analysis")
+            return self._analyze_batch(comments, batch_size)
+        else:
+            self.logger.warning("Analyzer doesn't support batching, using sequential")
+            return self._analyze_sequential(comments)
+
 
     def get_sentiment_distrib(self) -> Dict[SentimentLabel, int]:
         #calculate sentiment distribution for all comments

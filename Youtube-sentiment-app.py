@@ -10,7 +10,6 @@ from pathlib import Path
 import requests
 from datetime import datetime, timedelta
 from typing import Optional
-import json
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -59,6 +58,37 @@ def init_session_state():
         st.session_state.last_results = None
     if "analyzing" not in st.session_state:
         st.session_state.analyzing = False
+        
+        
+def extract_video_id(url_or_id: str) -> str:
+    """
+    Extract YouTube video ID from URL or return as-is if already an ID
+    
+    Args:
+        url_or_id: YouTube URL or video ID
+        
+    Returns:
+        str: YouTube video ID
+    """
+    from urllib.parse import urlparse, parse_qs
+    
+    # If it's already just an ID (11 chars), return it
+    if len(url_or_id) == 11 and url_or_id.replace('-', '').replace('_', '').isalnum():
+        return url_or_id
+    
+    # Handle youtu.be URLs
+    if 'youtu.be' in url_or_id:
+        parsed = urlparse(url_or_id)
+        return parsed.path.strip('/')
+    
+    # Handle youtube.com URLs
+    if 'youtube.com' in url_or_id:
+        parsed = urlparse(url_or_id)
+        query = parse_qs(parsed.query)
+        return query.get('v', [''])[0]
+    
+    # Return as-is if can't parse
+    return url_or_id
 
 
 # ============================================================================
@@ -210,58 +240,105 @@ def check_api_health() -> bool:
         return False
 
 
-def analyze_video(youtube_video_id: str) -> Optional[dict]:
+def analyze_video(video_url: str) -> dict:
     """
     Call FastAPI to analyze video
     
     Args:
-        youtube_video_id: YouTube video URL or ID
+        video_url: YouTube video URL or ID
         
     Returns:
-        Analysis results dictionary or None if failed
+        Analysis results dictionary
     """
+    
+    # Extract video ID from URL
+    video_id = extract_video_id(video_url)
+    
     try:
         response = requests.post(
             f"{FASTAPI_URL}/api/analyze",
             json={
-                "youtube_video_id": youtube_video_id,
-                "user_id": st.session_state.user_id
+                "youtube_video_id": video_id,  # Use extracted ID
+                "user_id": st.session_state["user_id"]
             },
-            timeout=180  # 3 minutes for analysis
+            timeout=300  # 5 minutes for large videos
         )
         
         if response.status_code == 200:
             return response.json()
         else:
-            error_detail = response.json().get("detail", "Unknown error")
-            st.error(f"❌ Analysis failed: {error_detail}")
-            return None
+            error_detail = response.json().get("detail", response.text)
+            raise Exception(f"Analysis failed: {error_detail}")
             
     except requests.exceptions.Timeout:
-        st.error("⏰ Analysis timed out. The video may have too many comments. Try a video with fewer comments.")
-        return None
-    except requests.exceptions.ConnectionError:
-        st.error("🔌 Cannot connect to FastAPI backend. Make sure it's running on http://localhost:8000")
-        return None
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        return None
-
-
+        raise Exception("Analysis timed out. The video may have too many comments.")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to connect to API: {e}")
+    
 def get_top_negative_comments(youtube_video_id: str, limit: int = 5) -> list:
-    """Get top negative comments from FastAPI"""
+    """
+    Get top negative comments from FastAPI
+    
+    Args:
+        youtube_video_id: YouTube video ID (just the ID, not full URL)
+        limit: Number of comments to retrieve
+        
+    Returns:
+        List of comment dictionaries with author, text, confidence
+    """
     try:
         response = requests.get(
             f"{FASTAPI_URL}/api/videos/{youtube_video_id}/comments/top-negative",
-            params={"user_id": st.session_state.user_id, "limit": limit},
+            params={
+                "user_id": st.session_state.user_id,
+                "limit": limit
+            },
             timeout=10
         )
+        
         if response.status_code == 200:
             return response.json()
+        else:
+            st.warning(f"Could not fetch top negative comments: {response.status_code}")
+            return []
+            
+    except requests.exceptions.Timeout:
+        st.warning("⏰ Request timed out while fetching comments")
         return []
-    except Exception:
+    except requests.exceptions.ConnectionError:
+        st.warning("🔌 Cannot connect to FastAPI backend")
+        return []
+    except Exception as e:
+        st.warning(f"Error fetching comments: {e}")
         return []
 
+def display_top_negative_comments(youtube_video_url: str):
+    """Display top negative comments"""
+    st.markdown("---")
+    st.subheader("💬 Top Negative Comments")
+    
+    # Extract video ID from URL
+    video_id = extract_video_id(youtube_video_url)
+    
+    with st.spinner("Loading top negative comments..."):
+        comments = get_top_negative_comments(video_id, limit=5)  # Pass ID, not URL
+    
+    if not comments:
+        st.info("No negative comments found or analysis not complete yet.")
+        return
+    
+    for i, comment in enumerate(comments, 1):
+        with st.expander(f"#{i} - {comment['author']} (Confidence: {comment['confidence']:.1%})"):
+            st.write(comment['text'])
+            
+            # Sentiment indicator
+            confidence_pct = comment['confidence'] * 100
+            if confidence_pct >= 90:
+                st.caption("🔴 Very Negative (High Confidence)")
+            elif confidence_pct >= 75:
+                st.caption("🟠 Negative (Medium Confidence)")
+            else:
+                st.caption("🟡 Negative (Lower Confidence)")
 
 def get_user_videos(limit: int = 10) -> list:
     """Get user's video history from FastAPI"""
@@ -282,9 +359,17 @@ def get_user_videos(limit: int = 10) -> list:
 # UI COMPONENTS
 # ============================================================================
 
+# In Youtube-sentiment-app.py
+# REPLACE the display_analysis_results function (around line 360-420) with this:
+
 def display_analysis_results(results: dict):
     """Display analysis results with visualizations"""
-    if not results or not results.get("success"):
+    # Handle None or empty results
+    if not results:
+        st.warning("⚠️ No analysis results available")
+        return
+    
+    if not results.get("success"):
         st.warning(results.get("message", "Analysis failed"))
         return
     
@@ -351,30 +436,22 @@ def display_analysis_results(results: dict):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def display_top_negative_comments(youtube_video_id: str):
+def display_top_negative_comments(youtube_video_url: str):
     """Display top negative comments"""
-    st.markdown("---")
     st.subheader("💬 Top Negative Comments")
     
-    with st.spinner("Loading top negative comments..."):
-        comments = get_top_negative_comments(youtube_video_id, limit=5)
+    # Extract just the video ID from the URL
+    video_id = extract_video_id(youtube_video_url)
+    
+    comments = get_top_negative_comments(video_id, limit=5)
     
     if not comments:
         st.info("No negative comments found or analysis not complete yet.")
         return
     
     for i, comment in enumerate(comments, 1):
-        with st.expander(f"#{i} - {comment['author']} (Confidence: {comment['confidence']:.1%})"):
+        with st.expander(f"#{i} - {comment['author']} (Confidence: {comment['confidence']:.2%})"):
             st.write(comment['text'])
-            
-            # Sentiment indicator
-            confidence_pct = comment['confidence'] * 100
-            if confidence_pct >= 90:
-                st.caption("🔴 Very Negative (High Confidence)")
-            elif confidence_pct >= 75:
-                st.caption("🟠 Negative (Medium Confidence)")
-            else:
-                st.caption("🟡 Negative (Lower Confidence)")
 
 
 def display_video_history():
@@ -401,11 +478,13 @@ def display_video_history():
         
         with col2:
             if st.button("View", key=f"view_{video['video_id']}"):
-                st.session_state.selected_video = video['youtube_video_id']
+                # Store FULL YouTube URL instead of just video ID
+                full_url = f"https://www.youtube.com/watch?v={video['youtube_video_id']}"
+                st.session_state.selected_video = full_url
+                st.session_state.switch_to_analyze = True
                 st.rerun()
         
         st.markdown("---")
-
 
 # ============================================================================
 # MAIN APPLICATION
@@ -483,10 +562,17 @@ def main():
         
         st.markdown("---")
         
-        # Navigation
+        # Navigation - handle switch from history page
+        if st.session_state.get("switch_to_analyze"):
+            default_index = 0  # Analyze Video page
+            st.session_state.switch_to_analyze = False
+        else:
+            default_index = 0
+        
         page = st.radio(
             "Navigation",
             ["🔍 Analyze Video", "📹 History"],
+            index=default_index,
             label_visibility="collapsed"
         )
         
@@ -495,20 +581,27 @@ def main():
         # Logout button
         if st.button("🚪 Logout", use_container_width=True):
             logout()
-    
+
     # Main content area
     if page == "🔍 Analyze Video":
         st.markdown("### Analyze YouTube Video Comments")
         st.markdown("Enter a YouTube video URL to analyze the sentiment of its comments.")
         
         # Video URL input
+        default_url = st.session_state.get("selected_video", "")
+        
         video_url = st.text_input(
             "YouTube Video URL",
+            value=default_url,
             placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             help="Paste the full URL or just the video ID",
             label_visibility="collapsed"
         )
         
+        # Clear the selected video after it's been used
+        if "selected_video" in st.session_state and default_url:
+            del st.session_state["selected_video"]
+
         # Analyze button
         col1, col2, col3 = st.columns([2, 1, 1])
         
@@ -531,25 +624,31 @@ def main():
             if not video_url:
                 st.error("⚠️ Please enter a YouTube URL")
             else:
-                st.session_state.analyzing = True
+                # Clear previous analyzing state
+                st.session_state.analyzing = False
                 
                 with st.spinner("🎬 Fetching comments and analyzing sentiment... This may take 30-60 seconds."):
                     results = analyze_video(video_url)
                     
-                    if results:
+                    # Only store results if they exist and are successful
+                    if results and results.get("success"):
                         st.session_state.last_results = results
                         st.session_state.last_video_id = video_url
-                    
-                    st.session_state.analyzing = False
-                    st.rerun()
+                        st.rerun()
+                    elif results:
+                        # Show error message but don't store None
+                        st.error(results.get("message", "Analysis failed"))
+                    else:
+                        # analyze_video already showed error message
+                        pass
         
         # Display results
-        if st.session_state.last_results:
+        if st.session_state.get("last_results"):
             st.markdown("---")
-            display_analysis_results(st.session_state.last_results)
+            display_analysis_results(st.session_state["last_results"])
             
             if st.session_state.get("last_video_id"):
-                display_top_negative_comments(st.session_state.last_video_id)
+                display_top_negative_comments(st.session_state["last_video_id"])
     
     else:  # History page
         display_video_history()
