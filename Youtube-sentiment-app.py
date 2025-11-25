@@ -511,7 +511,7 @@ def display_top_negative_comments(youtube_video_url: str):
         return
     
     for i, comment in enumerate(comments, 1):
-        with st.expander(f"#{i} - {comment['author']} (Confidence: {comment['confidence']:.2%})"):
+        with st.expander(f"(Confidence: {comment['confidence']:.2%})"):
             st.write(comment['text'])
 
 
