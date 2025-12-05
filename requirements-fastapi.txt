@@ -6,6 +6,7 @@ python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic[email]
 transformers==4.35.2
+torch>=2.1.0
 google-api-python-client==2.108.0
 google-auth==2.25.2
 google-auth-oauthlib==1.1.0

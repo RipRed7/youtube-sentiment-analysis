@@ -33,6 +33,13 @@ from src.utils.exceptions import (
     CommentsDisabledError,
     APIConnectionError
 )
+from src.config.constants import (
+    DEFAULT_CACHE_HOURS,
+    DEFAULT_TOP_NEGATIVE_LIMIT,
+    DEFAULT_VIDEO_LIMIT,
+    DEFAULT_FRONTEND_ORIGINS,
+    YOUTUBE_API_VIDEO_ENDPOINT
+)
 
 # Initialize logger
 logger = get_logger()
@@ -47,7 +54,7 @@ app = FastAPI(
 )
 
 # Configure CORS for Streamlit
-FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:8501,https://*.streamlit.app").split(",")
+FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", DEFAULT_FRONTEND_ORIGINS).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -268,7 +275,7 @@ def analyze_video(
         try:
             import requests as req
             title_response = req.get(
-                f"https://www.googleapis.com/youtube/v3/videos",
+                YOUTUBE_API_VIDEO_ENDPOINT,
                 params={
                     "part": "snippet",
                     "id": video_id,
@@ -293,9 +300,9 @@ def analyze_video(
         )
         logger.info(f"📊 Video DB ID: {video.video_id}")
         
-        # 4.5. Check for recent cached analysis (within 24 hours)
+        # 4.5. Check for recent cached analysis (within configured hours)
         logger.info("🔍 Checking for cached analysis...")
-        cached_analysis = crud.get_recent_analysis(db, video_id, hours=24)
+        cached_analysis = crud.get_recent_analysis(db, video_id, hours=DEFAULT_CACHE_HOURS)
         
         if cached_analysis:
             logger.info(f"✅ Found cached analysis from {cached_analysis.created_at}")
@@ -434,9 +441,9 @@ def analyze_video(
             # Continue anyway - we have the analysis results
             logger.warning("⚠️ Continuing without storing comments")
         
-        # 8. Get top 5 negative comments (sorted by confidence)
+        # 8. Get top negative comments (sorted by confidence)
         negative_comments.sort(key=lambda x: x["confidence"], reverse=True)
-        top_negative = negative_comments[:5]
+        top_negative = negative_comments[:DEFAULT_TOP_NEGATIVE_LIMIT]
         
         # 9. Store analysis summary in database
         try:
@@ -513,7 +520,7 @@ def list_videos(
         user = get_current_user(user_id, db)
         
         # Get videos
-        videos = crud.get_videos_by_user(db, user.user_id, limit=limit)
+        videos = crud.get_videos_by_user(db, user.user_id, limit=limit or DEFAULT_VIDEO_LIMIT)
         
         # Build response with analysis counts
         result = []

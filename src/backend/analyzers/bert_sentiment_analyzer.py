@@ -10,8 +10,8 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
     _logger = None # Class-level attribute for the logger
 
     def __init__(self):
-        if BertSentimentAnalyzer._logger is None:
-            BertSentimentAnalyzer._logger = get_logger()
+        if BertSentimentAnalyzer._logger is None: # if logger has not been created
+            BertSentimentAnalyzer._logger = get_logger() # get logger
 
         self.logger = BertSentimentAnalyzer._logger
 
@@ -39,11 +39,11 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
 
         except Exception as e:
             self.logger.exception(f"Failed to load BERT model: {model_name}")
-            raise ModelLoadError(model_name, e)
+            raise ModelLoadError(model_name, e) 
 
     def analyze(self, text: str) -> dict:
         #analyze comment and return result in a dict
-        if not text or not text.strip():
+        if not text or not text.strip(): # if there is no text
             self.logger.warning("Attempted to analyze empty text")
             return {"label": "NEUTRAL", "score": 0.0}
         
@@ -51,17 +51,17 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
             self.logger.debug(f"Analyzing text: {text[:50]}...")
             result = self.sentiment_analyzer(text, truncation=True, max_length=128)[0]
             
-            # Map RoBERTa labels to human-readable labels
+            # Map RoBERTa labels to sentiment labels
             label_mapping = {
                 'LABEL_0': 'NEGATIVE',
                 'LABEL_1': 'NEUTRAL',
                 'LABEL_2': 'POSITIVE'
             }
             
-            raw_label = result['label']
-            mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
+            raw_label = result['label'] # store raw label
+            mapped_label = label_mapping.get(raw_label, 'NEUTRAL') # map raw label, default label is neutral
             
-            mapped_result = {
+            mapped_result = { #dict containing mapped labels and confidence scores 
                 'label': mapped_label,
                 'score': result['score']
             }
@@ -85,7 +85,7 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
             Returns:
                 List of dicts with 'label' and 'score' keys
             """
-            if not texts:
+            if not texts: # if comments dont exist or are empty
                 self.logger.warning("Empty text list provided for batch analysis")
                 return []
             
@@ -101,14 +101,16 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
                     valid_indices.append(i)
             
             # Initialize results with neutral for all texts
-            results = [{"label": "NEUTRAL", "score": 0.0} for _ in range(len(texts))]
+            results = []
+            for j in range(len(texts)):
+                results.append({"label": "NEUTRAL", "score": 0.0})
             
             if not valid_texts:
                 self.logger.warning("No valid texts to analyze after filtering")
                 return results
             
             try:
-                # Use the pipeline's batch processing capability with truncation
+                # Use batch processing
                 batch_results = self.sentiment_analyzer(
                     valid_texts, 
                     batch_size=batch_size,
@@ -116,7 +118,7 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
                     max_length=128
                 )
                 
-                # Map RoBERTa labels to human-readable labels
+                # Map RoBERTa labels to sentiment labels
                 label_mapping = {
                     'LABEL_0': 'NEGATIVE',
                     'LABEL_1': 'NEUTRAL',
@@ -124,10 +126,10 @@ class BertSentimentAnalyzer(ISentimentAnalyzer):
                 }
                 
                 # Map results back to original indices
-                for idx, result in zip(valid_indices, batch_results):
+                for k, result in zip(valid_indices, batch_results):
                     raw_label = result['label']
                     mapped_label = label_mapping.get(raw_label, 'NEUTRAL')
-                    results[idx] = {
+                    results[k] = {
                         'label': mapped_label,
                         'score': result['score']
                     }

@@ -4,6 +4,7 @@ from google.oauth2.credentials import Credentials
 from src.backend.api.Icomment_fetcher import ICommentFetcher
 from src.utils.exceptions import APIConnectionError, APIQuotaExceededError, CommentsDisabledError, VideoNotFoundError
 from src.utils.logger import get_logger
+from src.config.constants import YOUTUBE_API_MAX_RESULTS
 
 class APIError(Exception):
     pass
@@ -18,10 +19,10 @@ class YoutubeCommentFetcher(ICommentFetcher):
         self.logger = get_logger()
         self.logger.info(f"Initialized YoutubeCommentFetcher for video: {VIDEO_ID}")
         
-        # Create credentials object from access token
+        # Create credentials from access token
         credentials = Credentials(token=access_token)
         
-        # Build YouTube API client with OAuth credentials
+        # Build YouTube API engine with OAuth credentials
         self.youtube = build("youtube", "v3", credentials=credentials)
 
     def get_comments(self) -> list[dict[str, str]]:
@@ -35,7 +36,7 @@ class YoutubeCommentFetcher(ICommentFetcher):
                 request = self.youtube.commentThreads().list(
                     part="snippet",  # required parameter for api
                     videoId=self.VIDEO_ID,
-                    maxResults=100,  # YouTube API max per request
+                    maxResults=YOUTUBE_API_MAX_RESULTS,
                     textFormat="plainText",
                     pageToken=next_page_token  # handle pagination
                 )
@@ -61,10 +62,10 @@ class YoutubeCommentFetcher(ICommentFetcher):
             self.logger.error(f"HttpError fetching comments for video {self.VIDEO_ID}: status = {status_code}, details = {error_details}")
 
             if status_code == 403:
-                if "quotaExceeded" in str(error_details):
+                if "quotaExceeded" in str(error_details): # if youtube api qouta has been exceded
                     self.logger.critical("Youtube API quota exceeded")
                     raise APIQuotaExceededError()
-                elif "commentsDisabled" in str(error_details):
+                elif "commentsDisabled" in str(error_details): # if comments are disabled
                     self.logger.warning(f"Comments are disabled for video: {self.VIDEO_ID}")
                     raise CommentsDisabledError(self.VIDEO_ID)
             

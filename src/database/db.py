@@ -7,8 +7,8 @@ from typing import Generator
 from dotenv import load_dotenv
 import os
 
-# Load .env file automatically
-load_dotenv()  # By default, it looks for a .env in current working directory
+# Load .env file
+load_dotenv()  
 
 from src.database.models import Base
 
@@ -22,7 +22,7 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Create synchronous engine
+# Create engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,  # Verify connections before using
@@ -36,14 +36,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_session() -> Generator[Session, None, None]:
-    """
-    FastAPI dependency for database sessions
-    
-    Usage:
-        @app.get("/users")
-        def get_users(db: Session = Depends(get_session)):
-            return db.query(User).all()
-    """
+    """FastAPI dependency for database sessions"""
     session = SessionLocal()
     try:
         yield session
@@ -56,26 +49,17 @@ def get_session() -> Generator[Session, None, None]:
 
 
 def get_db_session() -> Session:
-    """
-    Get a database session for manual use (Streamlit)
-    
-    Usage:
-        db = get_db_session()
-        try:
-            user = db.query(User).filter_by(email="test@example.com").first()
-        finally:
-            db.close()
-    """
+    """Get a database session for manual use (Streamlit)"""
     return SessionLocal()
 
 
 def init_db():
     """Initialize database - create all tables"""
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created successfully")
+    print("Database tables created successfully")
 
 
 def drop_all_tables():
-    """Drop all tables (DANGER - use only in development)"""
+    """Drop all tables"""
     Base.metadata.drop_all(bind=engine)
-    print("⚠️  All tables dropped")
+    print("All tables dropped")

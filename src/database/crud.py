@@ -1,5 +1,5 @@
 """CRUD operations for database (Synchronous)"""
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -8,9 +8,7 @@ import json
 from src.database.models import User, Video, Analysis, Comment
 
 
-# ============================================================================
-# USER CRUD
-# ============================================================================
+# USER OPERATIONS
 
 def create_or_update_user(
     db: Session,
@@ -22,7 +20,7 @@ def create_or_update_user(
     token_expires_at: Optional[datetime] = None
 ) -> User:
     """
-    Create or update user (upsert by google_id)
+    Create or update user (by google_id)
     
     Args:
         db: Database session
@@ -36,7 +34,7 @@ def create_or_update_user(
     Returns:
         User: Created or updated user
     """
-    user = db.query(User).filter_by(google_id=google_id).first()
+    user = db.query(User).filter_by(google_id=google_id).first() # find user based on google_id
     
     if user:
         # Update existing user
@@ -66,46 +64,10 @@ def create_or_update_user(
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
-    """Get user by ID"""
+    #Get user by ID"""
     return db.query(User).filter_by(user_id=user_id).first()
 
-
-def get_user_by_google_id(db: Session, google_id: str) -> Optional[User]:
-    """Get user by Google ID"""
-    return db.query(User).filter_by(google_id=google_id).first()
-
-
-def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    """Get user by email"""
-    return db.query(User).filter_by(email=email).first()
-
-
-def update_user_tokens(
-    db: Session,
-    user_id: int,
-    access_token: str,
-    refresh_token: Optional[str] = None,
-    token_expires_at: Optional[datetime] = None
-) -> User:
-    """Update user's OAuth tokens"""
-    user = db.query(User).filter_by(user_id=user_id).first()
-    if not user:
-        raise ValueError(f"User {user_id} not found")
-    
-    user.access_token = access_token
-    if refresh_token:
-        user.refresh_token = refresh_token
-    if token_expires_at:
-        user.token_expires_at = token_expires_at
-    
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-# ============================================================================
-# VIDEO CRUD
-# ============================================================================
+# VIDEO OPERATIONS
 
 def create_or_get_video(
     db: Session,
@@ -148,18 +110,16 @@ def create_or_get_video(
 
 
 def get_video_by_youtube_id(db: Session, youtube_video_id: str) -> Optional[Video]:
-    """Get video by YouTube video ID"""
+    #Get video by YouTube video ID
     return db.query(Video).filter_by(youtube_video_id=youtube_video_id).first()
 
 
 def get_videos_by_user(db: Session, user_id: int, limit: int = 10) -> List[Video]:
-    """Get videos analyzed by user (most recent first)"""
+    #Get videos analyzed by user (most recent first)
     return db.query(Video).filter_by(user_id=user_id).order_by(desc(Video.created_at)).limit(limit).all()
 
 
-# ============================================================================
 # COMMENT CRUD
-# ============================================================================
 
 def store_comment(
     db: Session,
@@ -226,23 +186,15 @@ def store_comments_bulk(
     db.add_all(comments)
     db.commit()
     
-    # Refresh all
+    # Refresh all comments
     for comment in comments:
         db.refresh(comment)
     
     return comments
 
 
-def get_comments_by_video(db: Session, video_id: int, limit: Optional[int] = None) -> List[Comment]:
-    """Get all comments for a video"""
-    query = db.query(Comment).filter_by(video_id=video_id)
-    if limit:
-        query = query.limit(limit)
-    return query.all()
-
-
-def get_negative_comments(db: Session, video_id: int, limit: int = 5) -> List[Comment]:
-    """Get top negative comments sorted by confidence"""
+def get_negative_comments(db: Session, video_id: int, limit: int = 10) -> List[Comment]:
+    #Get top negative comments sorted by confidence (top 10)
     return (
         db.query(Comment)
         .filter_by(video_id=video_id, sentiment="NEGATIVE")
@@ -252,9 +204,7 @@ def get_negative_comments(db: Session, video_id: int, limit: int = 5) -> List[Co
     )
 
 
-# ============================================================================
-# ANALYSIS CRUD
-# ============================================================================
+# ANALYSIS OPERATIONS
 
 def store_analysis(
     db: Session,
@@ -287,7 +237,7 @@ def store_analysis(
     negative_pct = (negative_count / total_comments * 100) if total_comments > 0 else 0
     neutral_pct = (neutral_count / total_comments * 100) if total_comments > 0 else 0
     
-    # Convert top negative comments to JSON string
+    # Convert top negative comments to JSON string, database friendly
     top_negative_json = json.dumps(top_negative_comments) if top_negative_comments else None
     
     analysis = Analysis(
@@ -309,28 +259,17 @@ def store_analysis(
     return analysis
 
 
-def get_analysis_by_id(db: Session, analysis_id: int) -> Optional[Analysis]:
-    """Get analysis by ID"""
-    return db.query(Analysis).filter_by(analysis_id=analysis_id).first()
-
-
 def get_analyses_by_video(db: Session, video_id: int) -> List[Analysis]:
-    """Get all analyses for a video (most recent first)"""
+    #Get all analyses for a video (most recent first)
     return db.query(Analysis).filter_by(video_id=video_id).order_by(desc(Analysis.created_at)).all()
 
 
 def get_latest_analysis_for_video(db: Session, video_id: int) -> Optional[Analysis]:
-    """Get the most recent analysis for a video"""
+    #Get the most recent analysis for a video
     return db.query(Analysis).filter_by(video_id=video_id).order_by(desc(Analysis.created_at)).first()
 
-
-def get_analyses_by_user(db: Session, user_id: int, limit: int = 10) -> List[Analysis]:
-    """Get analyses by user (most recent first)"""
-    return db.query(Analysis).filter_by(user_id=user_id).order_by(desc(Analysis.created_at)).limit(limit).all()
-
-
 def parse_top_negative_comments(analysis: Analysis) -> Optional[List[dict]]:
-    """Parse JSON string of top negative comments back to list"""
+    #Parse JSON string of top negative comments back to list
     if not analysis.top_negative_comments:
         return None
     try:
@@ -351,13 +290,12 @@ def get_recent_analysis(db: Session, youtube_video_id: str, hours: int = 24) -> 
     Returns:
         Analysis if found within time window, None otherwise
     """
-    from datetime import datetime, timedelta
     
     video = get_video_by_youtube_id(db, youtube_video_id)
     if not video:
         return None
     
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
     
     analysis = (
         db.query(Analysis)

@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 # Add project root to path
@@ -23,19 +23,26 @@ load_dotenv()
 # Import database modules for direct user storage
 from src.database.db import get_db_session
 from src.database import crud
+from src.config.constants import (
+    DEFAULT_TOP_NEGATIVE_LIMIT,
+    DEFAULT_USER_VIDEOS_LIMIT,
+    DEFAULT_TOKEN_EXPIRY_SECONDS,
+    API_TIMEOUT_SECONDS,
+    REQUEST_TIMEOUT_SECONDS,
+    GOOGLE_OAUTH_SCOPES,
+    GOOGLE_OAUTH_AUTHORIZE_URL,
+    GOOGLE_OAUTH_TOKEN_URL,
+    GOOGLE_OAUTH_USERINFO_URL,
+    GOOGLE_OAUTH_TOKENINFO_URL
+)
 
 # Configuration
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8000")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# OAuth scopes
-SCOPES = [
-    "openid",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/youtube.readonly"
-]
+# OAuth scopes (add 'openid' if not in constants)
+SCOPES = ["openid"] + GOOGLE_OAUTH_SCOPES
 
 
 # ============================================================================
@@ -137,9 +144,9 @@ def get_oauth_component():
     return OAuth2Component(
         client_id=GOOGLE_CLIENT_ID,
         client_secret=GOOGLE_CLIENT_SECRET,
-        authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
-        token_endpoint="https://oauth2.googleapis.com/token",
-        refresh_token_endpoint="https://oauth2.googleapis.com/token"
+        authorize_endpoint=GOOGLE_OAUTH_AUTHORIZE_URL,
+        token_endpoint=GOOGLE_OAUTH_TOKEN_URL,
+        refresh_token_endpoint=GOOGLE_OAUTH_TOKEN_URL
     )
 
 
@@ -147,7 +154,7 @@ def get_google_user_info(access_token: str) -> Optional[dict]:
     """Get user information from Google"""
     try:
         response = requests.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo",
+            GOOGLE_OAUTH_USERINFO_URL,
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=10
         )
@@ -168,7 +175,7 @@ def save_user_to_database(user_info: dict, token: dict) -> Optional[int]:
          # DEBUG: Check what scopes were granted
         import requests as req
         token_info = req.get(
-            "https://www.googleapis.com/oauth2/v3/tokeninfo",
+            GOOGLE_OAUTH_TOKENINFO_URL,
             params={"access_token": token["access_token"]}
         ).json()
         st.write("DEBUG - Granted scopes:", token_info.get("scope"))
@@ -176,7 +183,7 @@ def save_user_to_database(user_info: dict, token: dict) -> Optional[int]:
 
         # Calculate token expiry
         expires_in = token.get("expires_in", 3600)
-        token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         
         # Create or update user
         user = crud.create_or_update_user(
@@ -258,8 +265,8 @@ def handle_authentication():
                     st.session_state.access_token = token["access_token"]
                     st.session_state.refresh_token = token.get("refresh_token")
                     
-                    expires_in = token.get("expires_in", 3600)
-                    st.session_state.token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+                    expires_in = token.get("expires_in", DEFAULT_TOKEN_EXPIRY_SECONDS)
+                    st.session_state.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                     
                     st.success(f"✅ Logged in as {user_info['email']}")
                     st.rerun()
@@ -309,7 +316,7 @@ def analyze_video(video_url: str) -> dict:
                 "youtube_video_id": video_id,  # Use extracted ID
                 "user_id": st.session_state["user_id"]
             },
-            timeout=300  # 5 minutes for large videos
+            timeout=API_TIMEOUT_SECONDS
         )
         
         if response.status_code == 200:
@@ -341,7 +348,7 @@ def get_top_negative_comments(youtube_video_id: str, limit: int = 5) -> list:
                 "user_id": st.session_state.user_id,
                 "limit": limit
             },
-            timeout=10
+            timeout=REQUEST_TIMEOUT_SECONDS
         )
         
         if response.status_code == 200:
@@ -369,7 +376,7 @@ def display_top_negative_comments(youtube_video_url: str):
     video_id = extract_video_id(youtube_video_url)
     
     with st.spinner("Loading top negative comments..."):
-        comments = get_top_negative_comments(video_id, limit=5)  # Pass ID, not URL
+        comments = get_top_negative_comments(video_id, limit=DEFAULT_TOP_NEGATIVE_LIMIT)
     
     if not comments:
         st.info("No negative comments found or analysis not complete yet.")
@@ -380,13 +387,13 @@ def display_top_negative_comments(youtube_video_url: str):
             st.write(comment['text'])
 
 
-def get_user_videos(limit: int = 10) -> list:
+def get_user_videos(limit: int = DEFAULT_USER_VIDEOS_LIMIT) -> list:
     """Get user's video history from FastAPI"""
     try:
         response = requests.get(
             f"{FASTAPI_URL}/api/videos",
             params={"user_id": st.session_state.user_id, "limit": limit},
-            timeout=10
+            timeout=REQUEST_TIMEOUT_SECONDS
         )
         if response.status_code == 200:
             return response.json()
@@ -529,7 +536,7 @@ def display_video_history():
     st.subheader("Analysis History")
     
     with st.spinner("Loading your videos..."):
-        videos = get_user_videos(limit=20)
+        videos = get_user_videos(limit=DEFAULT_USER_VIDEOS_LIMIT)
     
     if not videos:
         st.info("No videos analyzed yet. Start by analyzing your first video!")
