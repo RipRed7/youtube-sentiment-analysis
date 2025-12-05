@@ -11,6 +11,7 @@ python-dotenv==1.0.0
 
 # Data Validation
 pydantic==2.5.0
+pydantic[email]
 
 # ML/NLP - CPU Only (Much smaller!)
 torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
