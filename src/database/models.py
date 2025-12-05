@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM Models (Synchronous) for Neon PostgreSQL - Simple Version"""
+"""SQLAlchemy ORM Models (Synchronous) for Neon PostgreSQL """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Numeric, ForeignKey, TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
@@ -9,9 +9,7 @@ from typing import Optional
 Base = declarative_base()
 
 
-# ============================================================================
 # SQLAlchemy ORM Models (Synchronous)
-# ============================================================================
 
 class User(Base):
     """User model - stores Google OAuth users"""
