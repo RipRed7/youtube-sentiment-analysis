@@ -165,6 +165,15 @@ def save_user_to_database(user_info: dict, token: dict) -> Optional[int]:
     """
     db = get_db_session()
     try:
+         # DEBUG: Check what scopes were granted
+        import requests as req
+        token_info = req.get(
+            "https://www.googleapis.com/oauth2/v3/tokeninfo",
+            params={"access_token": token["access_token"]}
+        ).json()
+        st.write("DEBUG - Granted scopes:", token_info.get("scope"))
+
+
         # Calculate token expiry
         expires_in = token.get("expires_in", 3600)
         token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
