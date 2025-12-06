@@ -8,6 +8,8 @@ This application uses a hybrid architecture where Streamlit handles the user int
 
 Currently the application is not verified by Google so my application authentication tokens have been disabled. Verifying the application may take months since the Youtube API I’m using is listed as one of Google's most sensitive API's. They do not mention this feature when using the API, so it caught me off guard. This process could not be completed in time for the project to be turned in as my token was not disabled until a week before the deadline. Luckily it wasn't disabled during the live demo but this is something I cannot fix without changing my architecture to avoid using the Google OAuth token, and I currently do not have the time to refactor everything. The error you will see when running an analysis is due to this reason, I have tried many quick fixes and none worked. I apologize for this. 
 
+Link: https://youtube-sentiment-25.streamlit.app/
+
 
 ## Features
 
