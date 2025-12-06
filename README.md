@@ -116,11 +116,11 @@ The codebase follows a clean architecture pattern with clear separation between 
 
 ## Challenges
 
-**Model Loading**: The BERT model takes significant time to load on first use, addressed by implementing a singleton pattern to reuse the loaded model across requests.
+**Model Loading**: The BERT model took a significant time to load on first use, I addressed by using a singleton pattern to load the model only once and reuse it multiple times to avoid constant loading. 
 
-**API Rate Limits**: YouTube API has strict quota limits, mitigated by implementing 24-hour analysis caching and comprehensive error handling for quota exceeded scenarios.
+**API Rate Limits**: YouTube API has quota limits which could be reached if too many users were using the application at one. I mitigated this somewhat by implementing 24-hour analysis caching and comprehensive error handling for scenarios where the quota is exceeded.
 
-**Large Comment Sets**: Videos with thousands of comments require efficient processing, solved through batch processing with progress logging and request timeouts.
+**Large Comment Sets**: Videos with thousands of comments could take minutes to process, which is a good experience for the user. I solved this through batch processing that processed multiple comments at once. I also implemented request timeouts if the analysis did take too long to avoid excessive load times.
 
 ## Deployment
 
