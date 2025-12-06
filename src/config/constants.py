@@ -68,5 +68,5 @@ GOOGLE_OAUTH_TOKENINFO_URL = "https://www.googleapis.com/oauth2/v3/tokeninfo"
 # FRONTEND CONFIGURATION
 # ============================================================================
 
-# Default frontend origins for CORS (can be overridden with FRONTEND_ORIGINS env var)
+# Default frontend origins 
 DEFAULT_FRONTEND_ORIGINS = "http://localhost:8501,https://*.streamlit.app"

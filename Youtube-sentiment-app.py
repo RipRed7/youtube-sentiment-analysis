@@ -41,13 +41,12 @@ FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8000")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# OAuth scopes (add 'openid' if not in constants)
+# OAuth scopes
 SCOPES = ["openid"] + GOOGLE_OAUTH_SCOPES
 
 
-# ============================================================================
+
 # SESSION STATE INITIALIZATION
-# ============================================================================
 
 def init_session_state():
     """Initialize session state variables"""
@@ -79,7 +78,7 @@ def extract_video_id(url_or_id: str) -> str:
     """
     from urllib.parse import urlparse, parse_qs
     
-    # If it's already just an ID (11 chars), return it
+    # If it's already an ID (11 chars), return it
     if len(url_or_id) == 11 and url_or_id.replace('-', '').replace('_', '').isalnum():
         return url_or_id
     
@@ -130,9 +129,7 @@ def get_video_title(video_id: str, access_token: str) -> str:
     return video_id  # Fallback to ID if fetch fails
 
 
-# ============================================================================
 # OAUTH AUTHENTICATION
-# ============================================================================
 
 @st.cache_resource
 def get_oauth_component():
@@ -214,10 +211,10 @@ def handle_authentication():
     st.markdown("Please login with your Google account to analyze YouTube videos.")
     st.markdown("---")
     
-    # Get redirect URI from environment (supports both local and cloud)
+    # Get redirect URI from environment 
     redirect_uri = os.getenv(
         "STREAMLIT_REDIRECT_URI", 
-        "http://localhost:8501"  # for local development
+        "http://localhost:8501"  
     )
     
     # OAuth login button
@@ -233,8 +230,6 @@ def handle_authentication():
             "include_granted_scopes": "true"
         }
     )
-    
-    # ... rest of your code
     
     if result and "token" in result:
         # Successfully authenticated
@@ -533,7 +528,7 @@ def display_video_history():
         # Use title if available, fallback to ID
         display_title = video.get('title') or f"Video {video['youtube_video_id']}"
         
-        # Create card-like layout
+        # Create card layout
         st.markdown(f"""
         <div class="video-card">
             <div class="video-title">{display_title}</div>
@@ -624,7 +619,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        # User profile section with custom styling
+        # User profile section 
         st.markdown(f"""
         <div class="profile-section">
             <h3>{st.session_state.user_info['name']}</h3>
@@ -651,7 +646,7 @@ def main():
             key="page_navigation"
         )
         
-        # Clear the switch flag AFTER page is set
+        # Clear the switch flag after page is set
         if st.session_state.get("switch_to_analyze"):
             st.session_state.switch_to_analyze = False
         
@@ -661,7 +656,7 @@ def main():
         if st.button(" Logout", use_container_width=True):
             logout()
 
-    # Main content area
+    # Main content 
     if page == "🔍 Analyze Video":
         st.markdown("### Analyze YouTube Video Comments")
         st.markdown("Enter a YouTube video URL to analyze the sentiment of its comments.")

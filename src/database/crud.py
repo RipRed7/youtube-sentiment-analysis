@@ -21,15 +21,6 @@ def create_or_update_user(
 ) -> User:
     """
     Create or update user (by google_id)
-    
-    Args:
-        db: Database session
-        google_id: Google user ID
-        email: User email
-        name: User name
-        access_token: OAuth access token
-        refresh_token: OAuth refresh token
-        token_expires_at: Token expiration time
         
     Returns:
         User: Created or updated user
@@ -281,11 +272,6 @@ def parse_top_negative_comments(analysis: Analysis) -> Optional[List[dict]]:
 def get_recent_analysis(db: Session, youtube_video_id: str, hours: int = 24) -> Optional[Analysis]:
     """
     Get recent analysis for a video (within specified hours)
-    
-    Args:
-        db: Database session
-        youtube_video_id: YouTube video ID
-        hours: How recent the analysis should be (default: 24 hours)
         
     Returns:
         Analysis if found within time window, None otherwise

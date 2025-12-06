@@ -95,9 +95,7 @@ class Comment(Base):
         return f"<Comment(comment_id={self.comment_id}, author={self.author})>"
 
 
-# ============================================================================
 # Pydantic Schemas for FastAPI Responses
-# ============================================================================
 
 class UserSchema(BaseModel):
     """Pydantic schema for User responses"""
@@ -108,8 +106,7 @@ class UserSchema(BaseModel):
     created_at: datetime
     
     class Config:
-        from_attributes = True  # Pydantic v2
-        # For Pydantic v1, use: orm_mode = True
+        from_attributes = True  
 
 
 class VideoSchema(BaseModel):

@@ -1,6 +1,6 @@
 #root exception / base exception for all errors
 class SentimentAnalyzerError(Exception):
-    def __init__(self, message: str, details: dict = None): #store context as data, not just strings
+    def __init__(self, message: str, details: dict = None): 
         self.message = message
         self.details = details or {}
         super().__init__(self.message)

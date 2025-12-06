@@ -77,9 +77,7 @@ def get_bert_analyzer() -> BertSentimentAnalyzer:
     return _bert_analyzer
 
 
-# ============================================================================
 # REQUEST/RESPONSE MODELS
-# ============================================================================
 
 class AnalyzeRequest(BaseModel):
     """Request model for video analysis"""
@@ -133,9 +131,7 @@ class ErrorResponse(BaseModel):
     status_code: int
 
 
-# ============================================================================
 # HELPER FUNCTIONS
-# ============================================================================
 
 def extract_video_id(youtube_url_or_id: str) -> str:
     """
@@ -174,13 +170,11 @@ def get_current_user(user_id: int, db: Session) -> crud.User:
     return user
 
 
-# ============================================================================
 # ROOT ENDPOINTS
-# ============================================================================
 
 @app.get("/")
 def root():
-    """API root endpoint"""
+    #API root endpoint
     return {
         "message": "YouTube Sentiment Analyzer API",
         "version": "2.0.0",
@@ -192,7 +186,7 @@ def root():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint - checks database connectivity"""
+    #Health check endpoint - checks database connectivity
     from src.database.db import engine
     
     try:
@@ -213,9 +207,7 @@ def health_check():
         }
 
 
-# ============================================================================
 # VIDEO ANALYSIS ENDPOINT
-# ============================================================================
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze_video(
@@ -232,25 +224,18 @@ def analyze_video(
     4. Run BERT sentiment analysis on each comment
     5. Store comments and sentiments in database
     6. Return analysis summary
-    
-    Args:
-        request: AnalyzeRequest with youtube_video_id and user_id
-        db: Database session (injected)
         
     Returns:
         AnalyzeResponse with analysis results
-        
-    Raises:
-        HTTPException: 401 (unauthorized), 422 (invalid input), 500 (internal error)
     """
     try:
         logger.info(f"🎬 Starting analysis: video={request.youtube_video_id}, user={request.user_id}")
         
-        # 1. Validate user
+        # Validate user
         user = get_current_user(request.user_id, db)
         logger.debug(f"✅ User validated: {user.email}")
         
-        # 2. Extract clean video ID
+        # Extract clean video ID
         try:
             video_id = extract_video_id(request.youtube_video_id)
             logger.debug(f"📹 Extracted video ID: {video_id}")
@@ -261,7 +246,7 @@ def analyze_video(
                 detail=f"Invalid YouTube video ID or URL. Please check the format."
             )
         
-        # 3. Check if user has valid access token
+        # Check if user has valid access token
         if not user.access_token:
             logger.error(f"❌ User {user.user_id} has no access token")
             raise HTTPException(
@@ -269,7 +254,7 @@ def analyze_video(
                 detail="No YouTube access token found. Please login again."
             )
         
-        # 4. Create or get video in database (with title)
+        # Create or get video in database (with title)
         # First, try to get the video title from YouTube
         video_title = None
         try:
@@ -300,7 +285,7 @@ def analyze_video(
         )
         logger.info(f"📊 Video DB ID: {video.video_id}")
         
-        # 4.5. Check for recent cached analysis (within configured hours)
+        # Check for recent cached analysis
         logger.info("🔍 Checking for cached analysis...")
         cached_analysis = crud.get_recent_analysis(db, video_id, hours=DEFAULT_CACHE_HOURS)
         
@@ -326,7 +311,7 @@ def analyze_video(
         
         logger.info("📥 No cached analysis found, proceeding with fresh analysis...")
         
-        # 5. Fetch comments from YouTube
+        # Fetch comments from YouTube
         try:
             logger.info("📥 Fetching comments from YouTube...")
             fetcher = YoutubeCommentFetcher(user.access_token, video_id)
@@ -371,7 +356,7 @@ def analyze_video(
                 detail=f"Failed to fetch comments: {str(e)}"
             )
         
-        # 6. Run sentiment analysis with BERT
+        # Run sentiment analysis with BERT
         try:
             logger.info("🤖 Running BERT sentiment analysis...")
             analyzer = get_bert_analyzer()
@@ -380,7 +365,7 @@ def analyze_video(
             comments_data = []
             negative_comments = []
 
-            # --- BATCH ANALYSIS ---
+            # Batch
             logger.info("Running batch analysis...")
             comment_texts = [comment["text"] for comment in raw_comments]
             batch_results = analyzer.analyze_comments_batch(comment_texts, batch_size=32)
@@ -427,7 +412,7 @@ def analyze_video(
                 detail=f"Sentiment analysis failed: {str(e)}"
             )
         
-        # 7. Store comments in database
+        # Store comments in database
         try:
             logger.info("💾 Storing comments in database...")
             stored_comments = crud.store_comments_bulk(
@@ -438,14 +423,13 @@ def analyze_video(
             logger.info(f"✅ Stored {len(stored_comments)} comments")
         except Exception as e:
             logger.error(f"⚠️ Failed to store comments: {e}")
-            # Continue anyway - we have the analysis results
             logger.warning("⚠️ Continuing without storing comments")
         
-        # 8. Get top negative comments (sorted by confidence)
+        # Get top negative comments, sorted by confidence
         negative_comments.sort(key=lambda x: x["confidence"], reverse=True)
         top_negative = negative_comments[:DEFAULT_TOP_NEGATIVE_LIMIT]
         
-        # 9. Store analysis summary in database
+        # Store analysis summary in database
         try:
             logger.info("💾 Storing analysis summary...")
             total = len(raw_comments)
@@ -461,7 +445,7 @@ def analyze_video(
             )
             logger.info(f"✅ Analysis stored with ID: {analysis.analysis_id}")
             
-            # 10. Return success response
+            # Return success response
             return AnalyzeResponse(
                 success=True,
                 message="Analysis completed successfully! 🎉",
@@ -484,7 +468,6 @@ def analyze_video(
             )
     
     except HTTPException:
-        # Re-raise HTTP exceptions (already handled)
         raise
     except Exception as e:
         logger.exception("❌ Unexpected error during analysis")
@@ -494,9 +477,7 @@ def analyze_video(
         )
 
 
-# ============================================================================
 # VIDEO LIST ENDPOINT
-# ============================================================================
 
 @app.get("/api/videos", response_model=List[VideoListItem])
 def list_videos(
@@ -506,12 +487,7 @@ def list_videos(
 ):
     """
     Get list of videos analyzed by user
-    
-    Args:
-        user_id: User ID
-        limit: Maximum number of videos to return (default: 10)
-        db: Database session
-        
+
     Returns:
         List of videos with analysis counts
     """
@@ -548,9 +524,7 @@ def list_videos(
         )
 
 
-# ============================================================================
 # TOP NEGATIVE COMMENTS ENDPOINT
-# ============================================================================
 
 @app.get("/api/videos/{youtube_video_id}/comments/top-negative", response_model=List[TopNegativeComment])
 def get_top_negative_comments(
@@ -562,12 +536,6 @@ def get_top_negative_comments(
     """
     Get top negative comments for a video
     
-    Args:
-        youtube_video_id: YouTube video ID
-        user_id: User ID (for authorization)
-        limit: Number of top comments to return (default: 5)
-        db: Database session
-        
     Returns:
         List of top negative comments with confidence scores
     """
@@ -583,16 +551,16 @@ def get_top_negative_comments(
                 detail="Video not found. Please analyze it first."
             )
         
-        # Get latest analysis (contains top negative comments)
+        # Get latest analysis, contains top negative comments
         analysis = crud.get_latest_analysis_for_video(db, video.video_id)
         
         if analysis and analysis.top_negative_comments:
-            # Parse from analysis (faster)
+            # Parse from analysis
             top_negative = crud.parse_top_negative_comments(analysis)
             if top_negative:
                 return [TopNegativeComment(**comment) for comment in top_negative[:limit]]
         
-        # Fallback: Query from comments table
+        # Fallback - Query from comments table
         negative_comments = crud.get_negative_comments(db, video.video_id, limit=limit)
         
         return [
@@ -613,9 +581,7 @@ def get_top_negative_comments(
             detail=f"Failed to retrieve comments: {str(e)}"
         )
 
-# ============================================================================
 # ERROR HANDLERS
-# ============================================================================
 
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
@@ -638,16 +604,14 @@ async def internal_error_handler(request, exc):
     }
 
 
-# ============================================================================
-# STARTUP/SHUTDOWN EVENTS
-# ============================================================================
+# STARTUP/SHUTDOWN EVENT
 
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""
-    logger.info("🚀 FastAPI application starting...")
-    logger.info(f"📚 API docs available at /docs")
-    logger.info(f"🌐 Allowed CORS origins: {', '.join(FRONTEND_ORIGINS)}")
+    logger.info(" FastAPI application starting...")
+    logger.info(f" API docs available at /docs")
+    logger.info(f" Allowed CORS origins: {', '.join(FRONTEND_ORIGINS)}")
     
     # Pre-load BERT model
     try:
@@ -661,12 +625,10 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on application shutdown"""
-    logger.info("🛑 FastAPI application shutting down...")
+    logger.info(" FastAPI application shutting down...")
 
 
-# ============================================================================
 # RUN APPLICATION
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
@@ -675,12 +637,12 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     
     print("=" * 60)
-    print("🚀 YouTube Sentiment Analyzer - FastAPI Backend")
+    print(" YouTube Sentiment Analyzer - FastAPI Backend")
     print("=" * 60)
-    print(f"📍 Server: http://{host}:{port}")
-    print(f"📚 API Docs: http://{host}:{port}/docs")
-    print(f"🔍 Health Check: http://{host}:{port}/health")
-    print(f"🌐 CORS Origins: {', '.join(FRONTEND_ORIGINS)}")
+    print(f" Server: http://{host}:{port}")
+    print(f" API Docs: http://{host}:{port}/docs")
+    print(f" Health Check: http://{host}:{port}/health")
+    print(f" CORS Origins: {', '.join(FRONTEND_ORIGINS)}")
     print("=" * 60)
     print()
     print("Architecture: Hybrid")

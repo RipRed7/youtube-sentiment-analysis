@@ -1,5 +1,4 @@
--- Simple Neon PostgreSQL Schema for YouTube Sentiment Analyzer
--- Synchronous, minimal design for capstone demo
+-- Neon PostgreSQL Schema for YouTube Sentiment Analyzer
 
 -- Users table: stores Google OAuth users
 CREATE TABLE IF NOT EXISTS users (
@@ -13,8 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_google_id ON users(google_id);
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX i_users_google_id ON users(google_id);
+CREATE INDEX i_users_email ON users(email);
 
 -- Videos table: stores YouTube video metadata
 CREATE TABLE IF NOT EXISTS videos (
@@ -25,8 +24,8 @@ CREATE TABLE IF NOT EXISTS videos (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_videos_youtube_id ON videos(youtube_video_id);
-CREATE INDEX idx_videos_user_id ON videos(user_id);
+CREATE INDEX i_videos_youtube_id ON videos(youtube_video_id);
+CREATE INDEX i_videos_user_id ON videos(user_id);
 
 -- Analyses table: stores sentiment analysis results
 CREATE TABLE IF NOT EXISTS analyses (
@@ -44,8 +43,8 @@ CREATE TABLE IF NOT EXISTS analyses (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_analyses_video_id ON analyses(video_id);
-CREATE INDEX idx_analyses_user_id ON analyses(user_id);
+CREATE INDEX i_analyses_video_id ON analyses(video_id);
+CREATE INDEX i_analyses_user_id ON analyses(user_id);
 
 -- Comments table: stores raw YouTube comments
 CREATE TABLE IF NOT EXISTS comments (
@@ -58,5 +57,5 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_comments_video_id ON comments(video_id);
-CREATE INDEX idx_comments_sentiment ON comments(sentiment);
+CREATE INDEX i_comments_video_id ON comments(video_id);
+CREATE INDEX i_comments_sentiment ON comments(sentiment);
