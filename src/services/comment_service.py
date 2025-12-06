@@ -163,12 +163,12 @@ class CommentService:
             return {}
 
         # Check if analyzer supports batch processing
-        if hasattr(self.analyzer, 'analyze_batch'):
+        if hasattr(self.analyzer, 'analyze_comments_batch'):
             self.logger.info("Using batch processing for faster analysis")
-            return self._analyze_batch(comments, batch_size)
+            return self.analyze_batch(comments, batch_size)
         else:
             self.logger.warning("Analyzer doesn't support batching, using sequential")
-            return self._analyze_sequential(comments)
+            return self.analyze_sequential(comments)
 
 
     def get_sentiment_distrib(self) -> Dict[SentimentLabel, int]:
