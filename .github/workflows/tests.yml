@@ -26,6 +26,10 @@ jobs:
         pip install -r requirements-fastapi.txt
     
     - name: Run tests
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
+        GOOGLE_CLIENT_ID: test_client_id
+        GOOGLE_CLIENT_SECRET: test_client_secret
       run: |
         pytest tests/ -v --cov=src --cov-report=term-missing
     
