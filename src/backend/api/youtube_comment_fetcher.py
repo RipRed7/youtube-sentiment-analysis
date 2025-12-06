@@ -18,10 +18,17 @@ class YoutubeCommentFetcher(ICommentFetcher):
         self.VIDEO_ID = VIDEO_ID
         self.logger = get_logger()
         self.logger.info(f"Initialized YoutubeCommentFetcher for video: {VIDEO_ID}")
-        
-        # Create credentials from access token
-        credentials = Credentials(token=access_token)
-        
+    
+        # Create credentials from access token with proper scopes
+        credentials = Credentials(
+        token=access_token,
+        scopes=[
+            'https://www.googleapis.com/auth/youtube.readonly',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
+        ]
+    )
+    
         # Build YouTube API engine with OAuth credentials
         self.youtube = build("youtube", "v3", credentials=credentials)
 
