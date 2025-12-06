@@ -1,22 +1,11 @@
-# FastAPI Core
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-
-# Database
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-
-# Configuration
 python-dotenv==1.0.0
-
-# Data Validation
 pydantic==2.5.0
 pydantic[email]
-
-# ML/NLP - CPU Only (Much smaller!)
-torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
 transformers==4.35.2
-
-# Google APIs
 google-api-python-client==2.108.0
 google-auth==2.25.2
+google-auth-oauthlib==1.1.0
