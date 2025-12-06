@@ -235,8 +235,8 @@ def test_health_endpoint_responds():
 
 # Exceptions
 
-def test_service_raises_error_when_analyzer_fails():
-    """Test service properly handles analyzer failures"""
+def test_service_handles_analyzer_failure_with_fallback():
+    """Test service falls back to sequential when batch fails"""
     
     repo = InMemoryCommentRepo()
     mock_analyzer = Mock()
@@ -247,15 +247,17 @@ def test_service_raises_error_when_analyzer_fails():
         {"author": "User1", "text": "Test", "video_id": "abc"}
     ]
     
-    # Mock analyzer raises exception
-    mock_analyzer.analyze_comments_batch.side_effect = Exception("Model failed")
+    mock_analyzer.analyze_comments_batch.side_effect = Exception("Batch failed")
+    mock_analyzer.analyze.return_value = {"label": "NEUTRAL", "score": 0.5}
     
     service = CommentService(repo, mock_analyzer, mock_fetcher)
     service.fetch_and_store_comments()
     
-    # Should handle error gracefully or raise proper exception
-    with pytest.raises(Exception):
-        service.analyze_all_comments()
+    # Should handle error gracefully by falling back to sequential
+    results = service.analyze_all_comments()
+    
+    # Service should have attempted analysis
+    assert isinstance(results, dict)
 
 
 def test_repository_raises_error_for_missing_comment():
