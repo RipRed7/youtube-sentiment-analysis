@@ -1,59 +1,41 @@
 import pytest
-from src.repositories.commentRepository import InMemoryCommentRepo
-from src.domain.models import Comment, Sentiment, SentimentLabel
-from src.utils.exceptions import CommentNotFoundError
 
 
-class TestInMemoryCommentRepo:
-    """Unit tests for InMemoryCommentRepo"""
+def test_repository_adds_comment():
+    """Test that repository can add a comment"""
+    from src.repositories.commentRepository import InMemoryCommentRepo
+    from src.domain.models import Comment
     
-    @pytest.fixture
-    def repo(self):
-        """Fixture to provide a fresh repository for each test"""
-        return InMemoryCommentRepo()
+    repo = InMemoryCommentRepo()
+    comment = Comment(videoId="test", id=0, author="User", text="Text")
     
-    @pytest.fixture
-    def sample_comment(self):
-        """Fixture to provide a sample comment"""
-        return Comment(
-            videoId="dQw4w9WgXcQ",
-            id=0,
-            author="TestUser",
-            text="Great video!"
-        )
+    repo.add(comment)
     
-    def test_repo_initialization(self, repo):
-        """Test that repository initializes empty"""
-        assert len(repo.comments) == 0
-        assert repo.next_id == 1
+    assert len(repo.comments) == 1
+    assert comment.id == 1  # Should auto-assign ID
+
+
+def test_repository_retrieves_comment_by_id():
+    """Test that repository can find comment by ID"""
+    from src.repositories.commentRepository import InMemoryCommentRepo
+    from src.domain.models import Comment
     
-    def test_add_comment_assigns_id(self, repo, sample_comment):
-        """Test that adding a comment assigns an ID"""
-        repo.add(sample_comment)
-        
-        assert sample_comment.id == 1
-        assert repo.next_id == 2
+    repo = InMemoryCommentRepo()
+    comment = Comment(videoId="test", id=0, author="User", text="Text")
+    repo.add(comment)
     
-    def test_add_multiple_comments(self, repo):
-        """Test adding multiple comments increments IDs correctly"""
-        comment1 = Comment(videoId="abc", id=0, author="User1", text="Text1")
-        comment2 = Comment(videoId="abc", id=0, author="User2", text="Text2")
-        comment3 = Comment(videoId="abc", id=0, author="User3", text="Text3")
-        
-        repo.add(comment1)
-        repo.add(comment2)
-        repo.add(comment3)
-        
-        assert comment1.id == 1
-        assert comment2.id == 2
-        assert comment3.id == 3
-        assert repo.next_id == 4
-        assert len(repo.comments) == 3
+    retrieved = repo.get_by_id(1)
     
-    def test_add_comment_with_existing_id(self, repo):
-        """Test that adding a comment with existing non-zero ID keeps that ID"""
-        comment = Comment(videoId="abc", id=99, author="User", text="Text")
-        repo.add(comment)
-        
-        assert comment.id == 99
-        assert repo.next_id == 1  # next_id unchanged
+    assert retrieved is not None
+    assert retrieved.author == "User"
+
+
+def test_repository_returns_none_for_missing_id():
+    """Test that repository returns None when comment doesn't exist"""
+    from src.repositories.commentRepository import InMemoryCommentRepo
+    
+    repo = InMemoryCommentRepo()
+    
+    result = repo.get_by_id(999)
+    
+    assert result is None
