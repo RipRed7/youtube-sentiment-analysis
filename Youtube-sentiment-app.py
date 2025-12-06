@@ -172,15 +172,6 @@ def save_user_to_database(user_info: dict, token: dict) -> Optional[int]:
     """
     db = get_db_session()
     try:
-         # DEBUG: Check what scopes were granted
-        import requests as req
-        token_info = req.get(
-            GOOGLE_OAUTH_TOKENINFO_URL,
-            params={"access_token": token["access_token"]}
-        ).json()
-        st.write("DEBUG - Granted scopes:", token_info.get("scope"))
-
-
         # Calculate token expiry
         expires_in = token.get("expires_in", 3600)
         token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
@@ -282,9 +273,7 @@ def logout():
     st.rerun()
 
 
-# ============================================================================
 # API CALLS TO FASTAPI
-# ============================================================================
 
 def check_api_health() -> bool:
     """Check if FastAPI backend is running"""
@@ -402,12 +391,7 @@ def get_user_videos(limit: int = DEFAULT_USER_VIDEOS_LIMIT) -> list:
         return []
 
 
-# ============================================================================
 # UI COMPONENTS
-# ============================================================================
-
-# In Youtube-sentiment-app.py
-# REPLACE the display_analysis_results function (around line 360-420) with this:
 
 def display_analysis_results(results: dict):
     """Display analysis results with visualizations"""

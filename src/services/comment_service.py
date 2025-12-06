@@ -92,7 +92,7 @@ class CommentService:
             texts = [comment.text for comment in comments]
             
             # Analyze in batch
-            raw_results = self.analyzer.analyze_batch(texts, batch_size=batch_size)
+            raw_results = self.analyzer.analyze_comments_batch(texts, batch_size=batch_size)
             
             # Map results back
             label_map = {
@@ -122,7 +122,7 @@ class CommentService:
             
         except Exception as e:
             self.logger.exception("Batch failed, falling back to sequential")
-            return self._analyze_sequential(comments)
+            return self.analyze_sequential(comments)
         
     def analyze_sequential(self, comments: List[Comment]) -> Dict[int, Sentiment]:
         """Sequential analysis (original method)"""
